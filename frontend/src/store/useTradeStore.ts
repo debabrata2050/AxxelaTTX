@@ -27,6 +27,7 @@ interface TradeState {
 
   // Step 2: Contracts & Filtering
   contracts: ContractItem[];
+  allLoadedContracts: Record<string, ContractItem>;
   selectedContracts: string[];
   selectedProduct: ProductType;
   selectedSenderAccount: string;
@@ -43,11 +44,14 @@ interface TradeState {
   previewRows: (string | number | null)[][];
   previewSummary: any;
   exportFilename: string;
+  outputMode: 'paired' | 'batched';
 
   // Feedback & UI State
   isLoading: boolean;
   loadingTitle: string;
   loadingSubtitle: string;
+  loadingSteps: import('@/types/trade.types').LoadingStepItem[];
+  loadingProgress: number;
   alert: { title: string; message: string } | null;
 
   // Actions
@@ -88,8 +92,16 @@ interface TradeState {
   setPreviewData: (headers: string[], rows: (string | number | null)[][], summary: any) => void;
   updatePreviewCell: (r: number, c: number, val: string | number | null) => void;
   setExportFilename: (name: string) => void;
+  setOutputMode: (mode: 'paired' | 'batched') => void;
 
   showLoading: (title: string, subtitle?: string) => void;
+  showLoadingSteps: (title: string, subtitle: string, stepLabels: string[]) => void;
+  updateLoadingStep: (
+    stepIndexOrId: number | string,
+    status: 'pending' | 'in_progress' | 'completed' | 'error',
+    progress?: number
+  ) => void;
+  setLoadingProgress: (progress: number) => void;
   hideLoading: () => void;
   showAlert: (title: string, message: string) => void;
   hideAlert: () => void;
@@ -114,6 +126,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   routes: [],
 
   contracts: [],
+  allLoadedContracts: {},
   selectedContracts: [],
   selectedProduct: 'ALL',
   selectedSenderAccount: 'ALL',
@@ -128,10 +141,13 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   previewRows: [],
   previewSummary: null,
   exportFilename: '',
+  outputMode: 'paired',
 
   isLoading: false,
   loadingTitle: '',
   loadingSubtitle: '',
+  loadingSteps: [],
+  loadingProgress: 0,
   alert: null,
 
   setTheme: (theme) => {
@@ -168,10 +184,13 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       tradeCount: recordCount || 0,
       currentStep: 1,
       routes: [],
+      contracts: [],
+      allLoadedContracts: {},
       selectedContracts: [],
       allocations: {},
       previewRows: [],
       exportFilename: '',
+      outputMode: 'paired',
     }),
 
   addRoute: (from, to) => {
@@ -192,7 +211,21 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       routes: state.routes.filter((_, i) => i !== index),
     })),
 
-  setContracts: (contracts) => set({ contracts }),
+  setContracts: (contracts) =>
+    set((state) => {
+      const nextMap = { ...state.allLoadedContracts };
+      contracts.forEach((c) => {
+        const key =
+          c.contract_key ||
+          (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode);
+        if (key) {
+          nextMap[key] = c;
+        }
+      });
+      return { contracts, allLoadedContracts: nextMap };
+    }),
+
+  setOutputMode: (mode) => set({ outputMode: mode }),
 
   setSelectedProduct: (prod) => set({ selectedProduct: prod }),
 
@@ -360,9 +393,51 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   setExportFilename: (name) => set({ exportFilename: name }),
 
   showLoading: (title, subtitle = '') =>
-    set({ isLoading: true, loadingTitle: title, loadingSubtitle: subtitle }),
+    set({
+      isLoading: true,
+      loadingTitle: title,
+      loadingSubtitle: subtitle,
+      loadingSteps: [],
+      loadingProgress: 0,
+    }),
 
-  hideLoading: () => set({ isLoading: false }),
+  showLoadingSteps: (title, subtitle, stepLabels) =>
+    set({
+      isLoading: true,
+      loadingTitle: title,
+      loadingSubtitle: subtitle,
+      loadingProgress: 10,
+      loadingSteps: stepLabels.map((lbl, idx) => ({
+        id: `step-${idx}`,
+        label: lbl,
+        status: idx === 0 ? 'in_progress' : 'pending',
+      })),
+    }),
+
+  updateLoadingStep: (stepIndexOrId, status, progress) =>
+    set((state) => {
+      const nextSteps = state.loadingSteps.map((s, idx) => {
+        const matches =
+          typeof stepIndexOrId === 'number' ? idx === stepIndexOrId : s.id === stepIndexOrId;
+        if (matches) {
+          return { ...s, status };
+        }
+        return s;
+      });
+      return {
+        loadingSteps: nextSteps,
+        loadingProgress: progress !== undefined ? progress : state.loadingProgress,
+      };
+    }),
+
+  setLoadingProgress: (progress) => set({ loadingProgress: progress }),
+
+  hideLoading: () =>
+    set({
+      isLoading: false,
+      loadingSteps: [],
+      loadingProgress: 0,
+    }),
 
   showAlert: (title, message) => set({ alert: { title, message } }),
 
@@ -380,6 +455,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       tradeCount: 0,
       routes: [],
       contracts: [],
+      allLoadedContracts: {},
       selectedContracts: [],
       selectedProduct: 'ALL',
       selectedSenderAccount: 'ALL',
@@ -392,6 +468,9 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       previewRows: [],
       previewSummary: null,
       exportFilename: '',
+      outputMode: 'paired',
+      loadingSteps: [],
+      loadingProgress: 0,
       alert: null,
       isLoading: false,
     });

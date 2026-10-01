@@ -11,13 +11,15 @@ def build_preview():
     price_mode = data.get("price_mode", "price")
     manual_price = data.get("manual_price")
     custom_date = data.get("custom_date")
+    output_mode = data.get("output_mode", "paired")
 
     try:
         preview_data = trade_service.build_preview(
             allocations_data=allocations,
             price_mode=price_mode,
             global_manual_price=manual_price,
-            custom_date=custom_date
+            custom_date=custom_date,
+            output_mode=output_mode
         )
         return jsonify(preview_data)
     except Exception as e:

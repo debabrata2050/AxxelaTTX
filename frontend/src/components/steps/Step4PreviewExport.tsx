@@ -29,6 +29,8 @@ export const Step4PreviewExport: React.FC = () => {
     updatePreviewCell,
     exportFilename,
     setExportFilename,
+    outputMode,
+    setOutputMode,
     setStep,
     resetSession,
     showLoading,
@@ -64,7 +66,8 @@ export const Step4PreviewExport: React.FC = () => {
     }
   }, [autoFilename, exportFilename, setExportFilename]);
 
-  const loadPreview = async () => {
+  const loadPreview = async (modeOverride?: 'paired' | 'batched') => {
+    const activeMode = modeOverride || outputMode;
     const allocationPayload: any[] = [];
     trades.forEach((t) => {
       const a = allocations[t.row_id];
@@ -93,12 +96,18 @@ export const Step4PreviewExport: React.FC = () => {
       return;
     }
 
-    showLoading('Building 18-column Excel preview...', 'Applying institutional format');
+    showLoading(
+      'Building 18-column Excel preview...',
+      activeMode === 'batched'
+        ? 'Batched Format (All Transfers First, Reversals Second)'
+        : 'Paired Format (Leg 1 & 2 grouped per route)'
+    );
     try {
       const res = await apiClient.buildPreview({
         allocations: allocationPayload,
         price_mode: priceMode,
         manual_price: globalManualPrice,
+        output_mode: activeMode,
       });
       hideLoading();
 
@@ -113,6 +122,12 @@ export const Step4PreviewExport: React.FC = () => {
       hideLoading();
       showAlert('Preview Failed', err.message);
     }
+  };
+
+  const handleModeChange = (mode: 'paired' | 'batched') => {
+    if (mode === outputMode) return;
+    setOutputMode(mode);
+    loadPreview(mode);
   };
 
   useEffect(() => {
@@ -233,17 +248,44 @@ export const Step4PreviewExport: React.FC = () => {
 
       {/* Preview Container Card */}
       <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 border-b border-[var(--border-subtle)]/50 pb-3.5">
           <div className="flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-[var(--accent-gold)]" />
             <h3 className="text-sm font-bold uppercase tracking-wider text-[var(--text-main)]">
-              OPD Transfer Output (18 Columns)
+              Trade Transfer Output (18 Columns)
             </h3>
+          </div>
+
+          {/* Dual Output Option Selector */}
+          <div className="flex flex-wrap items-center gap-1.5 bg-[var(--input-bg)] p-1 rounded-xl border border-[var(--border-card)]">
+            <span className="text-[11px] font-bold text-[var(--text-muted)] uppercase tracking-wider px-2">
+              Layout:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleModeChange('paired')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${outputMode === 'paired'
+                  ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                }`}
+            >
+              Paired by Route
+            </button>
+            <button
+              type="button"
+              onClick={() => handleModeChange('batched')}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition ${outputMode === 'batched'
+                  ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-main)]'
+                }`}
+            >
+              Batched
+            </button>
           </div>
 
           <div className="flex items-center gap-3">
             <button
-              onClick={loadPreview}
+              onClick={() => loadPreview()}
               className="text-xs font-bold text-[var(--accent-gold)] hover:underline flex items-center gap-1"
             >
               <RefreshCw className="w-3.5 h-3.5" />

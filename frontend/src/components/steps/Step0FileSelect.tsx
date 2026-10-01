@@ -16,7 +16,8 @@ import {
 } from 'lucide-react';
 
 export const Step0FileSelect: React.FC = () => {
-  const { setActiveFile, showLoading, hideLoading, showAlert } = useTradeStore();
+  const { setActiveFile, showLoadingSteps, updateLoadingStep, hideLoading, showAlert } =
+    useTradeStore();
 
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [filterQuery, setFilterQuery] = useState('');
@@ -24,6 +25,13 @@ export const Step0FileSelect: React.FC = () => {
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceFile | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const FILE_PROCESSING_STEPS = [
+    'Inspecting CSV stream & mandatory column headers',
+    'Parsing execution rows & normalizing trade prices',
+    'Indexing client accounts & classifying contract types',
+    'Calibrating lot balances & initializing transfer engine',
+  ];
 
   const fetchWorkspaceFiles = async () => {
     setIsRefreshing(true);
@@ -42,25 +50,61 @@ export const Step0FileSelect: React.FC = () => {
   }, []);
 
   const handleSelectFile = async (f: WorkspaceFile) => {
-    showLoading('Loading trade file...', f.name);
+    showLoadingSteps('Loading Trade File', f.name, FILE_PROCESSING_STEPS);
+
+    let stage = 0;
+    const timer = setInterval(() => {
+      if (stage === 0) {
+        updateLoadingStep(0, 'completed', 35);
+        updateLoadingStep(1, 'in_progress');
+        stage = 1;
+      } else if (stage === 1) {
+        updateLoadingStep(1, 'completed', 65);
+        updateLoadingStep(2, 'in_progress');
+        stage = 2;
+      } else if (stage === 2) {
+        updateLoadingStep(2, 'completed', 85);
+        updateLoadingStep(3, 'in_progress');
+        stage = 3;
+      }
+    }, 250);
+
     try {
       const res = await apiClient.selectFile(f.path);
-      hideLoading();
+      clearInterval(timer);
+
       if (!res.success) {
-        showAlert('Load Error', res.error || 'Unable to parse CSV file.');
+        updateLoadingStep(stage, 'error');
+        setTimeout(() => {
+          hideLoading();
+          showAlert('Load Error', res.error || 'Unable to parse CSV file.');
+        }, 500);
         return;
       }
-      setActiveFile({
-        filePath: f.path,
-        filename: f.name,
-        clientGroup: res.client_group || 'SYM',
-        date: res.default_date || '',
-        accounts: res.accounts || [],
-        recordCount: res.total_records || 0,
-      });
+
+      updateLoadingStep(0, 'completed');
+      updateLoadingStep(1, 'completed');
+      updateLoadingStep(2, 'completed');
+      updateLoadingStep(3, 'completed', 100);
+
+      setTimeout(() => {
+        hideLoading();
+        setActiveFile({
+          filePath: f.path,
+          filename: f.name,
+          clientGroup: res.client_group || 'SYM',
+          date: res.default_date || '',
+          accounts: res.accounts || [],
+          recordCount: res.total_records || 0,
+        });
+      }, 350);
     } catch (err: any) {
-      hideLoading();
-      showAlert('Load Error', err.message);
+      clearInterval(timer);
+      updateLoadingStep(stage, 'error');
+      setTimeout(() => {
+        hideLoading();
+        showAlert('Load Error', err.message);
+      }, 500);
     }
   };
 
@@ -73,26 +117,62 @@ export const Step0FileSelect: React.FC = () => {
       return;
     }
 
-    showLoading('Processing uploaded CSV...', file.name);
+    showLoadingSteps('Uploading & Processing CSV', file.name, FILE_PROCESSING_STEPS);
+
+    let stage = 0;
+    const timer = setInterval(() => {
+      if (stage === 0) {
+        updateLoadingStep(0, 'completed', 35);
+        updateLoadingStep(1, 'in_progress');
+        stage = 1;
+      } else if (stage === 1) {
+        updateLoadingStep(1, 'completed', 65);
+        updateLoadingStep(2, 'in_progress');
+        stage = 2;
+      } else if (stage === 2) {
+        updateLoadingStep(2, 'completed', 85);
+        updateLoadingStep(3, 'in_progress');
+        stage = 3;
+      }
+    }, 280);
+
     try {
       const res = await apiClient.uploadFile(file);
-      hideLoading();
+      clearInterval(timer);
+
       if (!res.success) {
-        showAlert('Upload Failed', res.error || 'Failed to parse file.');
+        updateLoadingStep(stage, 'error');
+        setTimeout(() => {
+          hideLoading();
+          showAlert('Upload Failed', res.error || 'Failed to parse file.');
+        }, 500);
         return;
       }
-      setActiveFile({
-        filePath: res.filepath || file.name,
-        filename: file.name,
-        clientGroup: res.client_group || 'SYM',
-        date: res.default_date || '',
-        accounts: res.accounts || [],
-        recordCount: res.total_records || res.total_rows || 0,
-      });
-      fetchWorkspaceFiles();
+
+      updateLoadingStep(0, 'completed');
+      updateLoadingStep(1, 'completed');
+      updateLoadingStep(2, 'completed');
+      updateLoadingStep(3, 'completed', 100);
+
+      setTimeout(() => {
+        hideLoading();
+        setActiveFile({
+          filePath: res.filepath || file.name,
+          filename: file.name,
+          clientGroup: res.client_group || 'SYM',
+          date: res.default_date || '',
+          accounts: res.accounts || [],
+          recordCount: res.total_records || res.total_rows || 0,
+        });
+        fetchWorkspaceFiles();
+      }, 350);
     } catch (err: any) {
-      hideLoading();
-      showAlert('Upload Failed', err.message);
+      clearInterval(timer);
+      updateLoadingStep(stage, 'error');
+      setTimeout(() => {
+        hideLoading();
+        showAlert('Upload Failed', err.message);
+      }, 500);
     }
   };
 

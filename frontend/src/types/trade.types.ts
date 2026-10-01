@@ -80,3 +80,9 @@ export interface PreviewResponse {
   };
   error?: string;
 }
+
+export interface LoadingStepItem {
+  id: string;
+  label: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'error';
+}

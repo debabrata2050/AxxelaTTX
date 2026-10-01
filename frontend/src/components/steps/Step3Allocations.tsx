@@ -93,6 +93,27 @@ export const Step3Allocations: React.FC = () => {
     return res;
   }, [trades, allocations, routes]);
 
+  const activeSymbolsSummary = useMemo(() => {
+    const map: Record<string, { code: string; desc: string; lots: number; trades: number }> = {};
+    trades.forEach((t) => {
+      const a = allocations[t.row_id];
+      if (a && a.selected && a.transfer_qty > 0) {
+        const code = t.contractcode || 'N/A';
+        if (!map[code]) {
+          map[code] = {
+            code,
+            desc: t.contractfullname || t.contractdescription || '',
+            lots: 0,
+            trades: 0,
+          };
+        }
+        map[code].lots += Number(a.transfer_qty) || 0;
+        map[code].trades += 1;
+      }
+    });
+    return Object.values(map);
+  }, [trades, allocations]);
+
   const visibleTrades = useMemo(() => {
     if (senderTab === 'ALL') return trades;
     return trades.filter((t) => String(t.account || '').toUpperCase() === senderTab.toUpperCase());
@@ -203,11 +224,11 @@ export const Step3Allocations: React.FC = () => {
         </div>
       </div>
 
-      {/* Pricing Strategy Cards */}
+      {/* Pricing Strategy Cards & Active Symbols Card */}
       <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-4">
         <h3 className="text-base font-bold text-[var(--text-main)]">TradePrice Source Selection</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {/* Market Price */}
           <label
             onClick={() => setPriceMode('price')}
@@ -225,7 +246,7 @@ export const Step3Allocations: React.FC = () => {
               className="mt-1 accent-[var(--accent-gold)] cursor-pointer"
             />
             <div>
-              <div className="text-sm font-bold text-[var(--text-main)]">OPD Market Price</div>
+              <div className="text-sm font-bold text-[var(--text-main)]">Market Price</div>
               <div className="text-xs text-[var(--text-muted)] mt-0.5">
                 Use original executed trade price from source CSV.
               </div>
@@ -252,7 +273,7 @@ export const Step3Allocations: React.FC = () => {
               className="mt-1 accent-[var(--accent-gold)] cursor-pointer"
             />
             <div>
-              <div className="text-sm font-bold text-[var(--text-main)]">OPD Settlement Price</div>
+              <div className="text-sm font-bold text-[var(--text-main)]">Settlement Price</div>
               <div className="text-xs text-[var(--text-muted)] mt-0.5">
                 Use exchange daily settle column from CSV.
               </div>
@@ -261,6 +282,40 @@ export const Step3Allocations: React.FC = () => {
               </span>
             </div>
           </label>
+
+          {/* Active Symbols Panel in 3rd slot */}
+          <div className="p-4 rounded-xl border border-[var(--border-card)] bg-[var(--input-bg)] flex flex-col justify-between">
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-sm font-bold text-[var(--text-main)]">Active Symbols</div>
+                <div className="text-xs text-[var(--text-muted)] mt-0.5">
+                  Contracts allocated in this batch.
+                </div>
+              </div>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--accent-gold)]/15 text-[var(--accent-gold)] font-bold">
+                {activeSymbolsSummary.length} Symbol{activeSymbolsSummary.length === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <div className="mt-2.5 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {activeSymbolsSummary.length === 0 ? (
+                <span className="text-xs text-[var(--text-muted)] italic">No active contracts</span>
+              ) : (
+                activeSymbolsSummary.map((sym) => (
+                  <div
+                    key={sym.code}
+                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[var(--card-bg)] border border-[var(--border-card)] text-xs font-mono"
+                    title={sym.desc || sym.code}
+                  >
+                    <span className="font-bold text-[var(--accent-gold)]">{sym.code}</span>
+                    <span className="text-[10px] text-[var(--text-sub)]">
+                      {sym.lots}L ({sym.trades}t)
+                    </span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -503,10 +558,15 @@ export const Step3Allocations: React.FC = () => {
                       </td>
 
                       <td className="p-3 max-w-[240px]">
-                        <div className="font-bold text-[var(--accent-gold)]">{t.contractcode}</div>
+                        <div className="font-bold text-[var(--accent-gold)] font-mono">{t.contractcode}</div>
                         {t.contractfullname && (
-                          <div className="text-[11px] font-sans text-[var(--text-main)] truncate">
+                          <div className="text-[11px] font-sans text-[var(--text-main)] truncate" title={t.contractfullname}>
                             {t.contractfullname}
+                          </div>
+                        )}
+                        {t.contractdescription && t.contractdescription.trim() !== (t.contractfullname || '').trim() && (
+                          <div className="text-[10px] font-mono text-[var(--text-muted)] truncate" title={t.contractdescription}>
+                            {t.contractdescription}
                           </div>
                         )}
                       </td>

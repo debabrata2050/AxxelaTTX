@@ -111,7 +111,8 @@ class TradeTransferAllocator:
         allocations: List[TradeAllocation],
         row_id_map: Dict[str, Dict[str, Any]],
         price_strategy: PriceStrategy,
-        custom_date: Optional[str] = None
+        custom_date: Optional[str] = None,
+        output_mode: str = "paired"
     ) -> Tuple[List[List[Any]], List[int], Dict[str, Any]]:
         # Group allocations by (from_account, to_account)
         routes_map: Dict[Tuple[str, str], List[TradeAllocation]] = {}
@@ -126,65 +127,115 @@ class TradeTransferAllocator:
         total_dest_lots = 0.0
         total_src_lots = 0.0
 
-        route_idx = 0
-        for (src_acc, dst_acc), alloc_list in routes_map.items():
-            if route_idx > 0:
-                # Divider between distinct routes
-                all_rows.append([None] * len(EXCEL_HEADERS))
-                separator_indices.append(len(all_rows))
+        if output_mode == "batched":
+            # Mode B: All Destination transfers first across ALL accounts
+            for (src_acc, dst_acc), alloc_list in routes_map.items():
+                for alloc in alloc_list:
+                    row_dict = row_id_map.get(alloc.row_id)
+                    if not row_dict:
+                        continue
+                    orig_side = clean_str(row_dict.get("transactiontype", ""))
+                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    qty = alloc.transfer_qty
 
-            # Leg 1: Destination Account
-            for alloc in alloc_list:
-                row_dict = row_id_map.get(alloc.row_id)
-                if not row_dict:
-                    continue
-                orig_side = clean_str(row_dict.get("transactiontype", ""))
-                price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
-                qty = alloc.transfer_qty
+                    dest_row = cls.build_transfer_row(
+                        row_dict=row_dict,
+                        account=dst_acc,
+                        side=orig_side,
+                        qty=qty,
+                        price=price,
+                        custom_date=alloc.custom_date or custom_date
+                    )
+                    all_rows.append(dest_row)
+                    total_dest_lots += qty
 
-                dest_row = cls.build_transfer_row(
-                    row_dict=row_dict,
-                    account=dst_acc,
-                    side=orig_side,
-                    qty=qty,
-                    price=price,
-                    custom_date=alloc.custom_date or custom_date
-                )
-                all_rows.append(dest_row)
-                total_dest_lots += qty
-
-            # Separator row between Leg 1 and Leg 2
+            # Single blank separator row between all destination transfers and all source reversals
             all_rows.append([None] * len(EXCEL_HEADERS))
             separator_indices.append(len(all_rows))
 
-            # Leg 2: Source Account (Reversed side)
-            for alloc in alloc_list:
-                row_dict = row_id_map.get(alloc.row_id)
-                if not row_dict:
-                    continue
-                orig_side = clean_str(row_dict.get("transactiontype", ""))
-                rev_side = flip_side(orig_side)
-                price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
-                qty = alloc.transfer_qty
+            # Mode B: All Source reversals second across ALL accounts
+            for (src_acc, dst_acc), alloc_list in routes_map.items():
+                for alloc in alloc_list:
+                    row_dict = row_id_map.get(alloc.row_id)
+                    if not row_dict:
+                        continue
+                    orig_side = clean_str(row_dict.get("transactiontype", ""))
+                    rev_side = flip_side(orig_side)
+                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    qty = alloc.transfer_qty
 
-                src_row = cls.build_transfer_row(
-                    row_dict=row_dict,
-                    account=src_acc,
-                    side=rev_side,
-                    qty=qty,
-                    price=price,
-                    custom_date=alloc.custom_date or custom_date
-                )
-                all_rows.append(src_row)
-                total_src_lots += qty
+                    src_row = cls.build_transfer_row(
+                        row_dict=row_dict,
+                        account=src_acc,
+                        side=rev_side,
+                        qty=qty,
+                        price=price,
+                        custom_date=alloc.custom_date or custom_date
+                    )
+                    all_rows.append(src_row)
+                    total_src_lots += qty
+        else:
+            # Mode A (Default): Paired sequentially by route
+            route_idx = 0
+            for (src_acc, dst_acc), alloc_list in routes_map.items():
+                if route_idx > 0:
+                    # Divider between distinct routes
+                    all_rows.append([None] * len(EXCEL_HEADERS))
+                    separator_indices.append(len(all_rows))
 
-            route_idx += 1
+                # Leg 1: Destination Account
+                for alloc in alloc_list:
+                    row_dict = row_id_map.get(alloc.row_id)
+                    if not row_dict:
+                        continue
+                    orig_side = clean_str(row_dict.get("transactiontype", ""))
+                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    qty = alloc.transfer_qty
+
+                    dest_row = cls.build_transfer_row(
+                        row_dict=row_dict,
+                        account=dst_acc,
+                        side=orig_side,
+                        qty=qty,
+                        price=price,
+                        custom_date=alloc.custom_date or custom_date
+                    )
+                    all_rows.append(dest_row)
+                    total_dest_lots += qty
+
+                # Separator row between Leg 1 and Leg 2
+                all_rows.append([None] * len(EXCEL_HEADERS))
+                separator_indices.append(len(all_rows))
+
+                # Leg 2: Source Account (Reversed side)
+                for alloc in alloc_list:
+                    row_dict = row_id_map.get(alloc.row_id)
+                    if not row_dict:
+                        continue
+                    orig_side = clean_str(row_dict.get("transactiontype", ""))
+                    rev_side = flip_side(orig_side)
+                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    qty = alloc.transfer_qty
+
+                    src_row = cls.build_transfer_row(
+                        row_dict=row_dict,
+                        account=src_acc,
+                        side=rev_side,
+                        qty=qty,
+                        price=price,
+                        custom_date=alloc.custom_date or custom_date
+                    )
+                    all_rows.append(src_row)
+                    total_src_lots += qty
+
+                route_idx += 1
 
         summary = {
             "total_records": len(all_rows) - len(separator_indices),
             "total_dest_lots": total_dest_lots,
             "total_src_lots": total_src_lots,
-            "routes_count": len(routes_map)
+            "routes_count": len(routes_map),
+            "output_mode": output_mode
         }
 
         return all_rows, separator_indices, summary

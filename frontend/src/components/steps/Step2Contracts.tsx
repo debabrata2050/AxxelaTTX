@@ -17,6 +17,7 @@ export const Step2Contracts: React.FC = () => {
   const {
     routes,
     contracts,
+    allLoadedContracts,
     setContracts,
     selectedContracts,
     toggleContract,
@@ -41,6 +42,36 @@ export const Step2Contracts: React.FC = () => {
   const uniqueSenders = useMemo(() => {
     return Array.from(new Set(routes.map((r) => r.from)));
   }, [routes]);
+
+  // Eagerly prefetch contracts for all mapped routes so selection counts remain accurate across filters
+  useEffect(() => {
+    const prefetchAll = async () => {
+      if (routes.length === 0) return;
+      try {
+        const allSenders = Array.from(new Set(routes.map((r) => r.from))).join(',');
+        const data = await apiClient.getContracts(allSenders, 'ALL', '');
+        if (data.contracts) {
+          const store = useTradeStore.getState();
+          if (!store.selectedSenderAccount || store.selectedSenderAccount === 'ALL') {
+            setContracts(data.contracts);
+          } else {
+            // Merge into cache without disrupting current filtered view
+            const cache = { ...store.allLoadedContracts };
+            data.contracts.forEach((c: any) => {
+              const k =
+                c.contract_key ||
+                (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode);
+              if (k) cache[k] = c;
+            });
+            useTradeStore.setState({ allLoadedContracts: cache });
+          }
+        }
+      } catch (e) {
+        console.error('Failed to prefetch contracts for routes:', e);
+      }
+    };
+    prefetchAll();
+  }, [routes, setContracts]);
 
   // Load contracts whenever routes, product, or sender filter changes
   useEffect(() => {
@@ -101,26 +132,42 @@ export const Step2Contracts: React.FC = () => {
     ].filter((item) => !q || item.label.toUpperCase().includes(q));
   }, [uniqueSenders, routes, senderSearch]);
 
+  // Selected breakdown is calculated globally across ALL selected items, independent of active sender filter
   const selectedSummary = useMemo(() => {
     const summary: Record<string, { contracts: number; lots: number }> = {};
     uniqueSenders.forEach((s) => {
-      summary[s] = { contracts: 0, lots: 0 };
+      summary[s.toUpperCase()] = { contracts: 0, lots: 0 };
     });
-    contracts.forEach((c) => {
-      const key =
-        c.contract_key ||
-        (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode);
-      if (selectedContracts.includes(key)) {
-        const sender = c.account || 'DEFAULT';
+
+    selectedContracts.forEach((key) => {
+      let item: import('@/types/trade.types').ContractItem | undefined = allLoadedContracts[key];
+      if (!item) {
+        item = contracts.find(
+          (c) =>
+            (c.contract_key ||
+              (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode)) ===
+            key
+        );
+      }
+
+      if (item && item.account) {
+        const sender = item.account.toUpperCase();
         if (!summary[sender]) {
           summary[sender] = { contracts: 0, lots: 0 };
         }
         summary[sender].contracts += 1;
-        summary[sender].lots += c.available_lots || 0;
+        summary[sender].lots += item.available_lots || 0;
+      } else if (key.includes('::')) {
+        const sender = key.split('::')[0].toUpperCase();
+        if (!summary[sender]) {
+          summary[sender] = { contracts: 0, lots: 0 };
+        }
+        summary[sender].contracts += 1;
       }
     });
+
     return summary;
-  }, [contracts, selectedContracts, uniqueSenders]);
+  }, [allLoadedContracts, contracts, selectedContracts, uniqueSenders]);
 
   return (
     <div className="space-y-6">
@@ -282,8 +329,9 @@ export const Step2Contracts: React.FC = () => {
           <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-[var(--border-subtle)]/60">
             <span className="text-[11px] font-semibold text-[var(--text-muted)]">Selected by Account:</span>
             {uniqueSenders.map((s) => {
-              const info = selectedSummary[s] || { contracts: 0, lots: 0 };
-              const matchingRoute = routes.find((r) => r.from.toUpperCase() === s.toUpperCase());
+              const info = selectedSummary[s.toUpperCase()] || { contracts: 0, lots: 0 };
+              const matchingRoutes = routes.filter((r) => r.from.toUpperCase() === s.toUpperCase());
+              const destTargets = matchingRoutes.map((r) => r.to).join(', ');
               const hasSelection = info.contracts > 0;
               return (
                 <div
@@ -295,10 +343,10 @@ export const Step2Contracts: React.FC = () => {
                   }`}
                 >
                   <span className="font-bold text-red-400">{s}</span>
-                  {matchingRoute && (
+                  {destTargets && (
                     <>
                       <ArrowRight className="w-3 h-3 text-[var(--accent-gold)]" />
-                      <span className="font-bold text-emerald-400">{matchingRoute.to}</span>
+                      <span className="font-bold text-emerald-400">{destTargets}</span>
                     </>
                   )}
                   <span>:</span>
@@ -338,10 +386,10 @@ export const Step2Contracts: React.FC = () => {
             const desc = (c.contractdescription || '').trim();
             const hasDifferentDesc = desc && desc.toLowerCase() !== fullName.toLowerCase();
             const senderAcc = c.account || (c.accounts && c.accounts[0]) || '';
-            const routeForSender = routes.find(
+            const matchingRoutes = routes.filter(
               (r) => r.from.toUpperCase() === senderAcc.toUpperCase()
             );
-            const targetAccount = routeForSender?.to;
+            const targetAccount = matchingRoutes.map((r) => r.to).join(', ');
 
             return (
               <div

@@ -308,7 +308,8 @@ class TradeService:
         allocations_data: List[Dict[str, Any]],
         price_mode: str = "price",
         global_manual_price: Optional[float] = None,
-        custom_date: Optional[str] = None
+        custom_date: Optional[str] = None,
+        output_mode: str = "paired"
     ) -> Dict[str, Any]:
         if self.df is None:
             raise ValueError("No data file loaded.")
@@ -336,7 +337,8 @@ class TradeService:
             allocations=allocations,
             row_id_map=self.row_id_map,
             price_strategy=price_strategy,
-            custom_date=custom_date
+            custom_date=custom_date,
+            output_mode=output_mode
         )
 
         formatted_rows = []
