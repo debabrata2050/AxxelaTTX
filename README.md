@@ -27,24 +27,24 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
 
 ---
 
-## ⚡ Core Functionality
+## ⚡ 5-Step Trade Transfer Wizard Workflow
 
-### 1. Ingestion & Pre-Flight Validation
+### Step 0: File Source & Schema Validation
 - **Zero-Copy Disk Loading**: Reads large trade export files (up to 500MB) directly from workspace disk storage without payload duplication.
 - **Strict Schema Verification**: Automatically verifies required trading fields (`ContractCode`, `Account`, `Qty`, `Price`, `C/P`, `Strike`, `ExpDate`).
 - **Workspace File Switcher**: Hot-switch between uploaded files and stored CSV batches with cached metadata.
 
-### 2. Multi-Account Route Mapping
+### Step 1: Transfer Routes & Account Mapping
 - **Sender-to-Recipient Pairing**: Map any number of source trading accounts to target holding/clearing accounts.
 - **Auto-Discovery**: Extracts unique trading accounts from CSV execution headers.
 - **Validation Guards**: Prevents route duplication, circular routing, or empty destination accounts.
 
-### 3. Contract & Instrument Filtering
+### Step 2: Contract Filtering & Instrument Selection
 - **Derivative Slicing**: Instant breakdown by instrument types (Futures, Options Calls/Puts).
 - **Multi-Vector Search**: Filter by Symbol, Contract Code, Strike Price range, or Expiry date.
 - **Selection Summary**: Live counter for selected trades, open balances, and active routes.
 
-### 4. Precision Allocation & Pricing Engine
+### Step 3: Precision Pricing & Lot Allocation Sizing
 - **Flexible Lot Sizing**:
   - **Equal Split**: Evenly divides contract lots across target accounts.
   - **Full Transfer**: Transfers 100% of open balance into destination account.
@@ -56,7 +56,7 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
   - *Custom Value*: Strategy-specific settlement pricing.
 - **Custom Trade Dates**: Override execution date with target settlement timestamp.
 
-### 5. Institutional 18-Column Excel Exporter
+### Step 4: Review, Verification & 18-Column Excel Export
 - **Clearing Compliant**: Conforms to prime broker and clearing house ingestion schemas.
 - **Automated Opposing Legs**: Generates clean outbound (-Qty) and inbound (+Qty) book entries where required.
 - **High-Performance Serialization**: Leverages Python Pandas vectorization and `openpyxl` for instant workbook compilation.
@@ -112,19 +112,33 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Step-by-Step Installation & Setup
 
-### Prerequisites
-- **Python**: 3.9+ with `pip`
-- **Node.js**: 18+ with `npm`
+Follow these steps to clone, configure, and launch the platform:
 
-### One-Click Launch (Recommended)
+### Step 1: Clone the Repository
+Clone the codebase to your local machine:
+```bash
+git clone https://github.com/debabrata2050/AxxelaTTX.git
+cd AxxelaTTX
+```
 
-Double-click or run from terminal:
+### Step 2: Check Prerequisites
+Ensure Python and Node.js are available in your system path:
+```bash
+python --version   # Required: Python 3.9+
+node --version     # Required: Node.js 18+
+npm --version      # Required: npm 9+
+```
+
+---
+
+### Step 3: Launch Option A — One-Click (Windows)
+If you are on Windows, start all services with a single script:
 ```cmd
 start_app.bat
 ```
-*Spawns the Flask API backend on `http://127.0.0.1:5000`, the Next.js frontend on `http://localhost:3000`, launches your default browser, and terminates the launcher process immediately.*
+*Spawns the Flask API backend (`:5000`), compiles the Next.js frontend (`:3000`), opens `http://localhost:3000` in your default browser, and exits immediately.*
 
 To terminate both servers cleanly:
 ```cmd
@@ -133,25 +147,57 @@ stop_app.bat
 
 ---
 
-### Manual Setup
+### Step 4: Launch Option B — Manual CLI (Cross-Platform)
 
-#### 1. Backend Service
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate       # On Windows
-pip install -r requirements.txt
-python app.py
-```
-*Backend runs on `http://127.0.0.1:5000`.*
+#### Terminal 1: Backend Setup & Launch
+1. Open terminal and enter the `backend` folder:
+   ```bash
+   cd backend
+   ```
+2. Create and activate a Python virtual environment:
+   ```bash
+   # On Windows:
+   python -m venv venv
+   venv\Scripts\activate
 
-#### 2. Frontend Application
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*Frontend runs on `http://localhost:3000`.*
+   # On macOS / Linux:
+   python3 -m venv venv
+   source venv/bin/activate
+   ```
+3. Install backend dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Start the Flask API:
+   ```bash
+   python app.py
+   ```
+   *Flask REST API listens on `http://127.0.0.1:5000` (Health check: `http://127.0.0.1:5000/api/health`).*
+
+#### Terminal 2: Frontend Setup & Launch
+1. Open a second terminal and enter the `frontend` folder:
+   ```bash
+   cd frontend
+   ```
+2. Install npm dependencies:
+   ```bash
+   npm install
+   ```
+3. Start the Next.js development server:
+   ```bash
+   npm run dev
+   ```
+   *Next.js web client listens on `http://localhost:3000`.*
+
+---
+
+### Step 5: Access the Web Portal
+1. Open your browser and navigate to:
+   ```
+   http://localhost:3000
+   ```
+2. Open DevTools (`F12` or `Ctrl+Shift+I`) to view the branded golden session banner.
+3. Follow the 5-step wizard to import CSVs, map routes, and export 18-column Excel clearing files.
 
 ---
 
