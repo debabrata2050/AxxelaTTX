@@ -44,23 +44,20 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ onResetConfirm }) =>
 
   return (
     <div
-      className={`fixed inset-0 z-50 lg:hidden transition-all duration-300 ${
-        isMobileDrawerOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
-      }`}
+      className={`fixed inset-0 z-50 lg:hidden transition-all duration-300 ${isMobileDrawerOpen ? 'visible pointer-events-auto' : 'invisible pointer-events-none'
+        }`}
     >
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${
-          isMobileDrawerOpen ? 'opacity-100' : 'opacity-0'
-        }`}
+        className={`fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300 ease-in-out ${isMobileDrawerOpen ? 'opacity-100' : 'opacity-0'
+          }`}
         onClick={() => toggleMobileDrawer(false)}
       />
 
       {/* Sliding Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[var(--sidebar-bg)] border-r border-[var(--border-card)] shadow-2xl flex flex-col z-50 transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${
-          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
-        }`}
+        className={`fixed inset-y-0 left-0 w-72 max-w-[85vw] bg-[var(--sidebar-bg)] border-r border-[var(--border-card)] shadow-2xl flex flex-col z-50 transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
         <div className="h-14 px-4 flex items-center justify-between border-b border-[var(--border-subtle)]">
           <div className="flex items-center gap-2">
@@ -95,22 +92,20 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({ onResetConfirm }) =>
                 key={s.step}
                 onClick={() => handleStepClick(s.step)}
                 disabled={isDisabled}
-                className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition border ${
-                  isActive
+                className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition border ${isActive
                     ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] font-bold shadow-sm'
                     : isCompleted
-                    ? 'border-transparent text-[var(--text-main)] hover:bg-white/5'
-                    : 'border-transparent text-[var(--text-muted)] hover:bg-white/5 disabled:opacity-40'
-                }`}
+                      ? 'border-transparent text-[var(--text-main)] hover:bg-white/5'
+                      : 'border-transparent text-[var(--text-muted)] hover:bg-white/5 disabled:opacity-40'
+                  }`}
               >
                 <div
-                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold ${
-                    isActive
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-xs font-mono font-bold ${isActive
                       ? 'bg-[var(--accent-gold)] text-black'
                       : isCompleted
-                      ? 'bg-emerald-500/20 text-emerald-400'
-                      : 'bg-white/5 text-[var(--text-muted)]'
-                  }`}
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-white/5 text-[var(--text-muted)]'
+                    }`}
                 >
                   {isCompleted ? '✓' : s.step}
                 </div>

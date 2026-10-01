@@ -58,11 +58,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenFileModal }) => {
                 'dark'
               )
             }
-            className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer active:scale-90 ${
-              theme === 'dark'
+            className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer active:scale-90 ${theme === 'dark'
                 ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-black shadow-[0_2px_12px_rgba(251,225,52,0.4)] scale-[1.04]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:scale-105'
-            }`}
+              }`}
             title="Dark Theme"
             aria-label="Switch to Dark Theme"
           >
@@ -79,11 +78,10 @@ export const Header: React.FC<HeaderProps> = ({ onOpenFileModal }) => {
                 'light'
               )
             }
-            className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer active:scale-90 ${
-              theme === 'light'
+            className={`group relative flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition-all duration-300 cursor-pointer active:scale-90 ${theme === 'light'
                 ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-black shadow-[0_2px_12px_rgba(212,155,14,0.4)] scale-[1.04]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-main)] hover:scale-105'
-            }`}
+              }`}
             title="Light Theme"
             aria-label="Switch to Light Theme"
           >

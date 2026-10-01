@@ -23,13 +23,13 @@ if %ERRORLEVEL% NEQ 0 (
 )
 
 echo [1/3] Starting Python Flask API on http://127.0.0.1:5000...
-start "Axxela Backend (Flask :5000)" /min cmd /c "cd /d \"%~dp0backend\" && python app.py"
+start "Axxela Backend (Flask :5000)" cmd /k call "%~dp0backend\start_backend.bat"
 
 :: Wait for Flask backend to bind port
 timeout /t 2 /nobreak >nul
 
 echo [2/3] Starting Next.js Frontend on http://localhost:3000...
-start "Axxela Frontend (Next.js :3000)" /min cmd /c "cd /d \"%~dp0frontend\" && npm run dev"
+start "Axxela Frontend (Next.js :3000)" cmd /k call "%~dp0frontend\start_frontend.bat"
 
 :: Wait for dev server compilation
 timeout /t 3 /nobreak >nul

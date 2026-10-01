@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-:root, [data-theme="dark"], html.dark {
+:root,
+[data-theme="dark"],
+html.dark {
   --canvas-bg: #0b0f17;
   --sidebar-bg: #0f1622;
   --card-bg: #161f2d;
@@ -17,7 +19,8 @@
   --accent-dark: #c59318;
 }
 
-[data-theme="light"], html.light {
+[data-theme="light"],
+html.light {
   --canvas-bg: #f4f6fa;
   --sidebar-bg: #ebedf2;
   --card-bg: #ffffff;
@@ -36,7 +39,7 @@
 
 body {
   background-color: var(--canvas-bg);
-  background-image: 
+  background-image:
     radial-gradient(at 100% 0%, rgba(251, 225, 52, 0.04) 0px, transparent 55%),
     radial-gradient(at 0% 100%, rgba(228, 182, 26, 0.025) 0px, transparent 55%);
   background-attachment: fixed;
@@ -46,8 +49,9 @@ body {
   transition: background-color 0.75s cubic-bezier(0.25, 1, 0.5, 1), color 0.75s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-[data-theme="light"] body, html.light body {
-  background-image: 
+[data-theme="light"] body,
+html.light body {
+  background-image:
     radial-gradient(at 100% 0%, rgba(212, 155, 14, 0.05) 0px, transparent 55%),
     radial-gradient(at 0% 100%, rgba(184, 134, 11, 0.03) 0px, transparent 55%);
 }
@@ -91,6 +95,7 @@ html[data-theme-transition="fallback"] *::after {
 }
 
 @media (prefers-reduced-motion: reduce) {
+
   html[data-theme-transition="fallback"],
   html[data-theme-transition="fallback"] *,
   html[data-theme-transition="fallback"] *::before,
@@ -112,6 +117,7 @@ html[data-theme-transition="fallback"] *::after {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);

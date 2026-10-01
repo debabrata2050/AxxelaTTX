@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
 import { apiClient } from '@/lib/apiClient';
 import { PriceMode } from '@/types/trade.types';
-import { ArrowRight, DollarSign, Calculator, Sliders } from 'lucide-react';
+import { ArrowRight, DollarSign, Calculator, Sliders, TrendingUp, Scale } from 'lucide-react';
 
 export const Step3Allocations: React.FC = () => {
   const {
@@ -92,27 +92,6 @@ export const Step3Allocations: React.FC = () => {
     });
     return res;
   }, [trades, allocations, routes]);
-
-  const activeSymbolsSummary = useMemo(() => {
-    const map: Record<string, { code: string; desc: string; lots: number; trades: number }> = {};
-    trades.forEach((t) => {
-      const a = allocations[t.row_id];
-      if (a && a.selected && a.transfer_qty > 0) {
-        const code = t.contractcode || 'N/A';
-        if (!map[code]) {
-          map[code] = {
-            code,
-            desc: t.contractfullname || t.contractdescription || '',
-            lots: 0,
-            trades: 0,
-          };
-        }
-        map[code].lots += Number(a.transfer_qty) || 0;
-        map[code].trades += 1;
-      }
-    });
-    return Object.values(map);
-  }, [trades, allocations]);
 
   const visibleTrades = useMemo(() => {
     if (senderTab === 'ALL') return trades;
@@ -224,98 +203,72 @@ export const Step3Allocations: React.FC = () => {
         </div>
       </div>
 
-      {/* Pricing Strategy Cards & Active Symbols Card */}
+      {/* Pricing Strategy Cards */}
       <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-4">
         <h3 className="text-base font-bold text-[var(--text-main)]">TradePrice Source Selection</h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Market Price */}
           <label
             onClick={() => setPriceMode('price')}
-            className={`p-4 rounded-xl border cursor-pointer transition flex items-start gap-3 ${
-              priceMode === 'price'
-                ? 'border-[var(--accent-gold)] bg-[var(--card-hover)] shadow-sm'
-                : 'border-[var(--border-card)] bg-[var(--input-bg)] hover:border-[var(--border-subtle)]'
-            }`}
+            className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 ease-out flex items-center justify-between select-none hover:-translate-y-0.5 ${priceMode === 'price'
+                ? 'border-[var(--accent-gold)] bg-[var(--card-hover)] shadow-md shadow-[var(--accent-gold)]/5 ring-1 ring-[var(--accent-gold)]/30'
+                : 'border-[var(--border-card)] bg-[var(--input-bg)] hover:border-[var(--border-subtle)] hover:bg-[var(--card-hover)]/40 shadow-sm'
+              }`}
           >
-            <input
-              type="radio"
-              name="price-strategy"
-              checked={priceMode === 'price'}
-              onChange={() => setPriceMode('price')}
-              className="mt-1 accent-[var(--accent-gold)] cursor-pointer"
-            />
-            <div>
-              <div className="text-sm font-bold text-[var(--text-main)]">Market Price</div>
-              <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                Use original executed trade price from source CSV.
-              </div>
-              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--accent-gold)] uppercase tracking-wider">
-                Default
+            <div className="flex items-center gap-3">
+              <input
+                type="radio"
+                name="price-strategy"
+                checked={priceMode === 'price'}
+                onChange={() => setPriceMode('price')}
+                className="w-4 h-4 accent-[var(--accent-gold)] cursor-pointer transition-transform duration-200 group-hover:scale-110"
+              />
+              <span className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors duration-200">
+                Market Price
               </span>
+            </div>
+
+            <div
+              className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${priceMode === 'price'
+                  ? 'bg-[var(--accent-gold)]/15 border-[var(--accent-gold)]/30 text-[var(--accent-gold)] shadow-sm scale-105'
+                  : 'bg-[var(--card-bg)] border-[var(--border-card)] text-[var(--text-muted)] group-hover:text-[var(--accent-gold)] group-hover:border-[var(--border-subtle)] group-hover:scale-105'
+                }`}
+            >
+              <TrendingUp className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
             </div>
           </label>
 
           {/* Settle Price */}
           <label
             onClick={() => setPriceMode('settle')}
-            className={`p-4 rounded-xl border cursor-pointer transition flex items-start gap-3 ${
-              priceMode === 'settle'
-                ? 'border-[var(--accent-gold)] bg-[var(--card-hover)] shadow-sm'
-                : 'border-[var(--border-card)] bg-[var(--input-bg)] hover:border-[var(--border-subtle)]'
-            }`}
+            className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 ease-out flex items-center justify-between select-none hover:-translate-y-0.5 ${priceMode === 'settle'
+                ? 'border-[var(--accent-gold)] bg-[var(--card-hover)] shadow-md shadow-[var(--accent-gold)]/5 ring-1 ring-[var(--accent-gold)]/30'
+                : 'border-[var(--border-card)] bg-[var(--input-bg)] hover:border-[var(--border-subtle)] hover:bg-[var(--card-hover)]/40 shadow-sm'
+              }`}
           >
-            <input
-              type="radio"
-              name="price-strategy"
-              checked={priceMode === 'settle'}
-              onChange={() => setPriceMode('settle')}
-              className="mt-1 accent-[var(--accent-gold)] cursor-pointer"
-            />
-            <div>
-              <div className="text-sm font-bold text-[var(--text-main)]">Settlement Price</div>
-              <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                Use exchange daily settle column from CSV.
-              </div>
-              <span className="inline-block mt-2 text-[10px] font-bold text-[var(--accent-gold)] uppercase tracking-wider">
-                Settle Mode
+            <div className="flex items-center gap-3">
+              <input
+                type="radio"
+                name="price-strategy"
+                checked={priceMode === 'settle'}
+                onChange={() => setPriceMode('settle')}
+                className="w-4 h-4 accent-[var(--accent-gold)] cursor-pointer transition-transform duration-200 group-hover:scale-110"
+              />
+              <span className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors duration-200">
+                Settlement Price
               </span>
+            </div>
+
+            <div
+              className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${priceMode === 'settle'
+                  ? 'bg-[var(--accent-gold)]/15 border-[var(--accent-gold)]/30 text-[var(--accent-gold)] shadow-sm scale-105'
+                  : 'bg-[var(--card-bg)] border-[var(--border-card)] text-[var(--text-muted)] group-hover:text-[var(--accent-gold)] group-hover:border-[var(--border-subtle)] group-hover:scale-105'
+                }`}
+            >
+              <Scale className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
             </div>
           </label>
-
-          {/* Active Symbols Panel in 3rd slot */}
-          <div className="p-4 rounded-xl border border-[var(--border-card)] bg-[var(--input-bg)] flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-sm font-bold text-[var(--text-main)]">Active Symbols</div>
-                <div className="text-xs text-[var(--text-muted)] mt-0.5">
-                  Contracts allocated in this batch.
-                </div>
-              </div>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[var(--accent-gold)]/15 text-[var(--accent-gold)] font-bold">
-                {activeSymbolsSummary.length} Symbol{activeSymbolsSummary.length === 1 ? '' : 's'}
-              </span>
-            </div>
-
-            <div className="mt-2.5 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
-              {activeSymbolsSummary.length === 0 ? (
-                <span className="text-xs text-[var(--text-muted)] italic">No active contracts</span>
-              ) : (
-                activeSymbolsSummary.map((sym) => (
-                  <div
-                    key={sym.code}
-                    className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-[var(--card-bg)] border border-[var(--border-card)] text-xs font-mono"
-                    title={sym.desc || sym.code}
-                  >
-                    <span className="font-bold text-[var(--accent-gold)]">{sym.code}</span>
-                    <span className="text-[10px] text-[var(--text-sub)]">
-                      {sym.lots}L ({sym.trades}t)
-                    </span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         </div>
       </div>
 
@@ -357,11 +310,10 @@ export const Step3Allocations: React.FC = () => {
               {Object.entries(accountMetrics).map(([acc, met]) => (
                 <span
                   key={acc}
-                  className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${
-                    met.lots > 0
+                  className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 ${met.lots > 0
                       ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
                       : 'bg-amber-500/10 text-amber-300 border-amber-500/30'
-                  }`}
+                    }`}
                 >
                   <span className="font-bold text-red-400">{acc}</span>
                   {met.toAccount && (
@@ -391,11 +343,10 @@ export const Step3Allocations: React.FC = () => {
             <button
               type="button"
               onClick={() => setSenderTab('ALL')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition cursor-pointer ${
-                senderTab === 'ALL'
+              className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition cursor-pointer ${senderTab === 'ALL'
                   ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
                   : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-white'
-              }`}
+                }`}
             >
               All Trades ({trades.length} trds • {totalLots.toLocaleString()} lots)
             </button>
@@ -406,11 +357,10 @@ export const Step3Allocations: React.FC = () => {
                   key={acc}
                   type="button"
                   onClick={() => setSenderTab(acc)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition cursor-pointer ${
-                    isAct
+                  className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition cursor-pointer ${isAct
                       ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
                       : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-white'
-                  }`}
+                    }`}
                 >
                   <span className={isAct ? 'text-black font-bold' : 'text-red-400 font-bold'}>
                     {acc}
@@ -501,9 +451,8 @@ export const Step3Allocations: React.FC = () => {
                   return (
                     <tr
                       key={t.row_id}
-                      className={`hover:bg-[var(--accent-gold)]/5 transition ${
-                        alloc.selected ? 'bg-[var(--accent-gold)]/[0.02]' : 'opacity-60'
-                      }`}
+                      className={`hover:bg-[var(--accent-gold)]/5 transition ${alloc.selected ? 'bg-[var(--accent-gold)]/[0.02]' : 'opacity-60'
+                        }`}
                     >
                       <td className="p-3">
                         <input

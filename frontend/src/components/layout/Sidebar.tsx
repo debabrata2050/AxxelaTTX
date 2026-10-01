@@ -44,9 +44,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
 
   return (
     <aside
-      className={`hidden lg:flex flex-col border-r border-[var(--border-subtle)] bg-[var(--sidebar-bg)] transition-all duration-300 z-20 flex-shrink-0 ${
-        isSidebarCollapsed ? 'w-20' : 'w-72'
-      }`}
+      className={`hidden lg:flex flex-col border-r border-[var(--border-subtle)] bg-[var(--sidebar-bg)] transition-all duration-300 z-20 flex-shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-72'
+        }`}
     >
       {/* Brand Header */}
       <div className="h-14 px-4 flex items-center justify-between border-b border-[var(--border-subtle)]">
@@ -79,9 +78,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
           title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <ChevronLeft
-            className={`w-4 h-4 transition-transform duration-300 ${
-              isSidebarCollapsed ? 'rotate-180' : ''
-            }`}
+            className={`w-4 h-4 transition-transform duration-300 ${isSidebarCollapsed ? 'rotate-180' : ''
+              }`}
           />
         </button>
       </div>
@@ -102,22 +100,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
               key={s.step}
               onClick={() => handleStepClick(s.step)}
               disabled={isDisabled}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition border ${
-                isActive
-                  ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-sm font-bold'
-                  : isCompleted
+              className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition border ${isActive
+                ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-sm font-bold'
+                : isCompleted
                   ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
                   : 'border-transparent text-[var(--text-muted)] hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer'
-              } ${isSidebarCollapsed ? 'justify-center p-3' : ''}`}
+                } ${isSidebarCollapsed ? 'justify-center p-3' : ''}`}
             >
               <div
-                className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${
-                  isActive
-                    ? 'bg-[var(--accent-gold)] text-black'
-                    : isCompleted
+                className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${isActive
+                  ? 'bg-[var(--accent-gold)] text-black'
+                  : isCompleted
                     ? 'bg-emerald-500/20 text-emerald-400'
                     : 'bg-white/5 text-[var(--text-muted)]'
-                }`}
+                  }`}
               >
                 {isCompleted ? '✓' : s.step}
               </div>
