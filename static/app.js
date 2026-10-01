@@ -16,6 +16,7 @@ const STATE = {
   clientGroup: 'SYM',
   defaultDate: null,
   routes: [],           // [{ id: 1, from: 'EE006', to: 'EEABC' }]
+  selectedSenderAccount: 'ALL',
   selectedProduct: 'ALL',
   contractSearchQuery: '',
   contracts: [],        // loaded from server
@@ -26,7 +27,9 @@ const STATE = {
   allocations: {},      // row_id -> { selected: bool, transfer_qty: num, custom_price: num }
   previewHeaders: [],
   previewRows: [],
-  exportFilename: ''
+  exportFilename: '',
+  workspaceFiles: [],
+  workspaceFileSearchQuery: ''
 };
 
 // ==========================================================================
@@ -359,6 +362,10 @@ function clearSession() {
   STATE.allocations = {};
   STATE.previewRows = [];
   STATE.currentStep = 0;
+  STATE.selectedProduct = 'ALL';
+  STATE.exportFilename = '';
+  STATE.workspaceFileSearchQuery = '';
+  STATE.contractSearchQuery = '';
 
   document.getElementById('sb-file-name').textContent = 'No file loaded';
   document.getElementById('sb-row-count').textContent = '0 trades';
@@ -367,12 +374,9 @@ function clearSession() {
   document.getElementById('topbar-acc-count').textContent = '0';
   document.getElementById('topbar-trade-count').textContent = '0';
 
-  renderRoutesList();
-  updateBasketUI();
-  loadWorkspaceFileList();
-
-  // Reset server memory state
-  fetch('/api/unload-file', { method: 'POST' }).catch(() => {});
+  const wsSearch = document.getElementById('search-workspace-files-input');
+  if (wsSearch) wsSearch.value = '';
+  document.getElementById('btn-clear-workspace-search')?.classList.add('hidden');
 
   const inputSender = document.getElementById('input-sender-account');
   const inputRecipient = document.getElementById('input-recipient-account');
@@ -384,7 +388,37 @@ function clearSession() {
   const contractSearch = document.getElementById('search-contracts-input');
   if (contractSearch) contractSearch.value = '';
   document.getElementById('btn-clear-contracts-search')?.classList.add('hidden');
-  STATE.contractSearchQuery = '';
+
+  const exportFilenameInput = document.getElementById('input-export-filename');
+  if (exportFilenameInput) exportFilenameInput.value = '';
+  document.getElementById('btn-clear-export-filename')?.classList.add('hidden');
+
+  const selCounter = document.getElementById('contracts-selected-counter');
+  if (selCounter) selCounter.textContent = '0';
+
+  document.querySelectorAll('#product-chips .chip-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.prod === 'ALL');
+  });
+
+  renderRoutesList();
+  updateBasketUI();
+  loadWorkspaceFileList();
+
+  // Reset server memory state
+  fetch('/api/unload-file', { method: 'POST' }).catch(() => {});
+
+  STATE.selectedSenderAccount = 'ALL';
+  const senderLabel = document.getElementById('sender-filter-label');
+  if (senderLabel) senderLabel.textContent = 'All Senders';
+  document.getElementById('sender-filter-menu')?.classList.add('hidden');
+  document.getElementById('sender-filter-arrow')?.classList.remove('rotate-180');
+  const senderSearch = document.getElementById('sender-filter-search');
+  if (senderSearch) senderSearch.value = '';
+
+  document.getElementById('step2-routes-warning')?.classList.add('hidden');
+  document.getElementById('step3-routes-warning')?.classList.add('hidden');
+  const step4Summary = document.getElementById('step4-routes-summary');
+  if (step4Summary) step4Summary.innerHTML = '';
 
   const toast = document.getElementById('session-toast');
   if (toast) toast.classList.add('hidden');
@@ -512,6 +546,8 @@ function goToStep(step) {
 function bindStep0FileOnboarding() {
   const dropzone = document.getElementById('csv-dropzone');
   const fileInput = document.getElementById('file-input-upload');
+  const searchFilesInput = document.getElementById('search-workspace-files-input');
+  const btnClearFilesSearch = document.getElementById('btn-clear-workspace-search');
 
   dropzone.addEventListener('click', () => fileInput.click());
 
@@ -537,6 +573,32 @@ function bindStep0FileOnboarding() {
       await handleFileUpload(e.dataTransfer.files[0]);
     }
   });
+
+  function updateFilesClearBtn() {
+    if (btnClearFilesSearch && searchFilesInput) {
+      btnClearFilesSearch.classList.toggle('hidden', !searchFilesInput.value);
+    }
+  }
+
+  if (searchFilesInput) {
+    searchFilesInput.addEventListener('input', () => {
+      updateFilesClearBtn();
+      STATE.workspaceFileSearchQuery = searchFilesInput.value.trim().toLowerCase();
+      renderWorkspaceFiles();
+    });
+  }
+
+  if (btnClearFilesSearch) {
+    btnClearFilesSearch.addEventListener('click', () => {
+      if (searchFilesInput) {
+        searchFilesInput.value = '';
+        updateFilesClearBtn();
+        STATE.workspaceFileSearchQuery = '';
+        renderWorkspaceFiles();
+        searchFilesInput.focus();
+      }
+    });
+  }
 
   // Sidebar switch file trigger
   document.getElementById('btn-sidebar-switch-file').addEventListener('click', () => {
@@ -609,40 +671,54 @@ async function handleFileUpload(file) {
 }
 
 async function loadWorkspaceFileList() {
-  const container = document.getElementById('workspace-files-list');
   try {
     const res = await fetch('/api/files');
     const data = await res.json();
-    const files = data.files || [];
-
-    if (files.length === 0) {
-      container.innerHTML = '<div class="col-span-full py-4 text-center text-xs text-slateText-muted">No CSV files found in workspace.</div>';
-      return;
-    }
-
-    container.innerHTML = files.map(f => `
-      <div class="file-item p-3.5 rounded-xl border border-white/10 bg-navy-input hover:border-gold cursor-pointer transition flex justify-between items-center ${f.path === STATE.activeFilePath ? 'border-gold bg-gold/5' : ''}" data-path="${f.path}">
-        <div class="truncate">
-          <div class="font-bold text-xs text-slateText-primary truncate">${f.name}</div>
-          <div class="text-[10px] text-slateText-muted font-mono">${f.rel_path} (${f.size_mb} MB)</div>
-        </div>
-        ${f.path === STATE.activeFilePath ? '<span class="text-[10px] font-bold text-gold px-2 py-0.5 rounded-full bg-gold/15">Active</span>' : ''}
-      </div>
-    `).join('');
-
-    container.querySelectorAll('.file-item').forEach(item => {
-      item.addEventListener('click', () => {
-        const filePath = item.dataset.path;
-        if (STATE.activeFilePath && STATE.activeFilePath !== filePath && STATE.routes.length > 0) {
-          promptFileSwitch(() => selectWorkspaceFile(filePath));
-        } else {
-          selectWorkspaceFile(filePath);
-        }
-      });
-    });
+    STATE.workspaceFiles = data.files || [];
+    renderWorkspaceFiles();
   } catch (e) {
-    container.innerHTML = `<div class="col-span-full py-4 text-center text-xs text-red-400">Error: ${e.message}</div>`;
+    const container = document.getElementById('workspace-files-list');
+    if (container) {
+      container.innerHTML = `<div class="col-span-full py-4 text-center text-xs text-red-400">Error: ${e.message}</div>`;
+    }
   }
+}
+
+function renderWorkspaceFiles() {
+  const container = document.getElementById('workspace-files-list');
+  if (!container) return;
+
+  const q = STATE.workspaceFileSearchQuery || '';
+  let files = STATE.workspaceFiles || [];
+  if (q) {
+    files = files.filter(f => (f.name && f.name.toLowerCase().includes(q)) || (f.rel_path && f.rel_path.toLowerCase().includes(q)));
+  }
+
+  if (files.length === 0) {
+    container.innerHTML = `<div class="col-span-full py-4 text-center text-xs text-slateText-muted">${q ? 'No workspace CSV files match search filter.' : 'No CSV files found in workspace.'}</div>`;
+    return;
+  }
+
+  container.innerHTML = files.map(f => `
+    <div class="file-item p-3.5 rounded-xl border border-white/10 bg-navy-input hover:border-gold cursor-pointer transition flex justify-between items-center ${f.path === STATE.activeFilePath ? 'border-gold bg-gold/5' : ''}" data-path="${f.path}">
+      <div class="truncate">
+        <div class="font-bold text-xs text-slateText-primary truncate">${f.name}</div>
+        <div class="text-[10px] text-slateText-muted font-mono">${f.rel_path} (${f.size_mb} MB)</div>
+      </div>
+      ${f.path === STATE.activeFilePath ? '<span class="text-[10px] font-bold text-gold px-2 py-0.5 rounded-full bg-gold/15">Active</span>' : ''}
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.file-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const filePath = item.dataset.path;
+      if (STATE.activeFilePath && STATE.activeFilePath !== filePath && STATE.routes.length > 0) {
+        promptFileSwitch(() => selectWorkspaceFile(filePath));
+      } else {
+        selectWorkspaceFile(filePath);
+      }
+    });
+  });
 }
 
 async function selectWorkspaceFile(filePath) {
@@ -778,6 +854,10 @@ async function checkInitialStatus() {
             STATE.routes = saved.routes || [];
             STATE.selectedProduct = saved.selectedProduct || 'ALL';
             STATE.selectedContracts = new Set(saved.selectedContracts || []);
+            document.querySelectorAll('#product-chips .chip-btn').forEach(b => {
+              b.classList.toggle('active', b.dataset.prod === STATE.selectedProduct);
+            });
+            syncSelectedContractCounters();
             STATE.priceMode = saved.priceMode || 'price';
             STATE.globalManualPrice = saved.globalManualPrice || null;
             STATE.allocations = saved.allocations || {};
@@ -999,45 +1079,61 @@ function bindStep2Contracts() {
     });
   });
 
+  initSenderDropdown();
+
   const searchInput = document.getElementById('search-contracts-input');
   const btnClearSearch = document.getElementById('btn-clear-contracts-search');
   let searchTimer = null;
 
   function updateContractClearBtn() {
-    if (btnClearSearch) {
+    if (btnClearSearch && searchInput) {
       btnClearSearch.classList.toggle('hidden', !searchInput.value);
     }
   }
 
-  searchInput.addEventListener('input', () => {
-    updateContractClearBtn();
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
-      STATE.contractSearchQuery = searchInput.value.trim();
-      loadContracts();
-    }, 200);
-  });
+  if (searchInput) {
+    searchInput.addEventListener('input', () => {
+      updateContractClearBtn();
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        STATE.contractSearchQuery = searchInput.value.trim();
+        loadContracts();
+      }, 200);
+    });
+  }
 
   if (btnClearSearch) {
     btnClearSearch.addEventListener('click', () => {
-      searchInput.value = '';
-      updateContractClearBtn();
-      STATE.contractSearchQuery = '';
-      searchInput.focus();
-      loadContracts();
+      if (searchInput) {
+        searchInput.value = '';
+        updateContractClearBtn();
+        STATE.contractSearchQuery = '';
+        searchInput.focus();
+        loadContracts();
+      }
     });
   }
 
   document.getElementById('btn-select-all-contracts').addEventListener('click', () => {
-    STATE.contracts.forEach(c => STATE.selectedContracts.add(c.contractcode));
+    STATE.contracts.forEach(c => STATE.selectedContracts.add(c.contract_id || c.contractcode));
     renderContractsGrid();
+    syncSelectedContractCounters();
+    updateStep2RouteWarnings();
     updateBasketUI();
     persistSession();
   });
 
   document.getElementById('btn-clear-all-contracts').addEventListener('click', () => {
-    STATE.selectedContracts.clear();
+    const visibleIds = STATE.contracts.map(c => c.contract_id || c.contractcode);
+    const anyVisibleSelected = visibleIds.some(id => STATE.selectedContracts.has(id));
+    if (anyVisibleSelected) {
+      visibleIds.forEach(id => STATE.selectedContracts.delete(id));
+    } else {
+      STATE.selectedContracts.clear();
+    }
     renderContractsGrid();
+    syncSelectedContractCounters();
+    updateStep2RouteWarnings();
     updateBasketUI();
     persistSession();
   });
@@ -1047,11 +1143,147 @@ function bindStep2Contracts() {
   });
 }
 
+function initSenderDropdown() {
+  const trigger = document.getElementById('btn-sender-filter-trigger');
+  const menu = document.getElementById('sender-filter-menu');
+  const arrow = document.getElementById('sender-filter-arrow');
+  const search = document.getElementById('sender-filter-search');
+
+  if (!trigger || !menu) return;
+
+  trigger.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const isHidden = menu.classList.contains('hidden');
+    menu.classList.toggle('hidden', !isHidden);
+    arrow?.classList.toggle('rotate-180', isHidden);
+    if (isHidden && search) {
+      search.value = '';
+      filterSenderList('');
+      setTimeout(() => search.focus(), 60);
+    }
+  });
+
+  if (search) {
+    search.addEventListener('input', () => {
+      filterSenderList(search.value.trim());
+    });
+    search.addEventListener('click', (e) => e.stopPropagation());
+  }
+
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('#sender-filter-wrapper')) {
+      menu.classList.add('hidden');
+      arrow?.classList.remove('rotate-180');
+    }
+  });
+}
+
+function filterSenderList(query) {
+  const listEl = document.getElementById('sender-filter-list');
+  if (!listEl) return;
+  const q = (query || '').toUpperCase();
+  listEl.querySelectorAll('.sender-filter-item').forEach(item => {
+    const val = item.dataset.sender || '';
+    const match = !q || val.includes(q) || (val === 'ALL' && 'ALL SENDERS'.includes(q));
+    item.classList.toggle('hidden', !match);
+  });
+}
+
+function renderSenderAccountDropdown() {
+  const wrapper = document.getElementById('sender-filter-wrapper');
+  const listEl = document.getElementById('sender-filter-list');
+  const labelEl = document.getElementById('sender-filter-label');
+  if (!wrapper || !listEl) return;
+
+  const uniqueSenders = Array.from(new Set(STATE.routes.map(r => r.from)));
+  if (uniqueSenders.length <= 1) {
+    wrapper.classList.add('hidden');
+    STATE.selectedSenderAccount = 'ALL';
+    if (labelEl) labelEl.textContent = 'All Senders';
+    return;
+  }
+  wrapper.classList.remove('hidden');
+
+  if (labelEl) {
+    labelEl.textContent = STATE.selectedSenderAccount === 'ALL' ? 'All Senders' : STATE.selectedSenderAccount;
+  }
+
+  const items = [
+    { sender: 'ALL', label: 'All Senders', desc: `${uniqueSenders.length} accounts` },
+    ...uniqueSenders.map(s => {
+      const routeCnt = STATE.routes.filter(r => r.from === s).length;
+      return { sender: s, label: s, desc: `${routeCnt} route${routeCnt > 1 ? 's' : ''}` };
+    })
+  ];
+
+  listEl.innerHTML = items.map(it => {
+    const isAct = STATE.selectedSenderAccount === it.sender;
+    return `
+      <div class="sender-filter-item ${isAct ? 'active' : ''}" data-sender="${it.sender}">
+        <div class="flex items-center gap-2">
+          <span class="font-bold">${it.label}</span>
+          ${isAct ? '<span class="text-gold text-[10px]">✓</span>' : ''}
+        </div>
+        <span class="text-[10px] text-slateText-muted">${it.desc}</span>
+      </div>
+    `;
+  }).join('');
+
+  listEl.querySelectorAll('.sender-filter-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const senderVal = item.dataset.sender;
+      STATE.selectedSenderAccount = senderVal;
+      if (labelEl) {
+        labelEl.textContent = senderVal === 'ALL' ? 'All Senders' : senderVal;
+      }
+      document.getElementById('sender-filter-menu')?.classList.add('hidden');
+      document.getElementById('sender-filter-arrow')?.classList.remove('rotate-180');
+      loadContracts();
+    });
+  });
+}
+
+function updateStep2RouteWarnings() {
+  const warnEl = document.getElementById('step2-routes-warning');
+  const warnTextEl = document.getElementById('step2-routes-warning-text');
+  if (!warnEl || !warnTextEl) return;
+
+  if (STATE.routes.length <= 1) {
+    warnEl.classList.add('hidden');
+    return;
+  }
+
+  const routesWithSelection = new Set();
+  STATE.contracts.forEach(c => {
+    const key = c.contract_id || c.contractcode;
+    if (STATE.selectedContracts.has(key)) {
+      (c.accounts || []).forEach(acc => routesWithSelection.add(acc));
+    }
+  });
+
+  const emptyRoutes = STATE.routes.filter(r => !routesWithSelection.has(r.from));
+  if (emptyRoutes.length > 0 && STATE.selectedContracts.size > 0) {
+    warnTextEl.innerHTML = `
+      <div><strong>Notice:</strong> Route(s) with <strong>0 selected contracts</strong>: ${emptyRoutes.map(r => `<span class="font-mono font-bold">${r.from} &rarr; ${r.to}</span>`).join(', ')}.</div>
+      <div class="text-[11px] text-amber-300/80">Trades for these routes will not be transferred. Switch the Sender filter above to find and select their contracts.</div>
+    `;
+    warnEl.classList.remove('hidden');
+  } else {
+    warnEl.classList.add('hidden');
+  }
+}
+
 async function loadContracts() {
   const grid = document.getElementById('contracts-grid');
   grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-slateText-muted">Loading contracts...</div>';
 
-  const accounts = STATE.routes.map(r => r.from).join(',');
+  renderSenderAccountDropdown();
+
+  let accounts = STATE.routes.map(r => r.from).join(',');
+  if (STATE.selectedSenderAccount && STATE.selectedSenderAccount !== 'ALL') {
+    accounts = STATE.selectedSenderAccount;
+  }
+
   const params = new URLSearchParams({
     accounts: accounts,
     product: STATE.selectedProduct,
@@ -1063,15 +1295,12 @@ async function loadContracts() {
     const data = await res.json();
     STATE.contracts = data.contracts || [];
 
-    // Auto-select all on first load if none chosen
-    if (STATE.selectedContracts.size === 0 && STATE.contracts.length > 0) {
-      STATE.contracts.forEach(c => STATE.selectedContracts.add(c.contractcode));
-    }
-
     document.getElementById('contracts-counter').textContent = (data.total_contracts || 0).toLocaleString();
     document.getElementById('contracts-lots-counter').textContent = (data.total_lots || 0).toLocaleString();
 
     renderContractsGrid();
+    syncSelectedContractCounters();
+    updateStep2RouteWarnings();
     updateBasketUI();
     persistSession();
   } catch (err) {
@@ -1079,15 +1308,25 @@ async function loadContracts() {
   }
 }
 
+function syncSelectedContractCounters() {
+  const counterEl = document.getElementById('contracts-selected-counter');
+  if (counterEl) {
+    counterEl.textContent = STATE.selectedContracts.size.toLocaleString();
+  }
+}
+
 function renderContractsGrid() {
   const grid = document.getElementById('contracts-grid');
   if (STATE.contracts.length === 0) {
     grid.innerHTML = '<div class="col-span-full py-8 text-center text-xs text-slateText-muted">No contracts match current filters.</div>';
+    syncSelectedContractCounters();
+    updateStep2RouteWarnings();
     return;
   }
 
   grid.innerHTML = STATE.contracts.map(c => {
-    const isSelected = STATE.selectedContracts.has(c.contractcode);
+    const contractKey = c.contract_id || c.contractcode;
+    const isSelected = STATE.selectedContracts.has(contractKey);
     const expText = c.contractexpiry || c.expirydate || 'N/A';
     const optExtra = c.sectyp === 'OPT' ? ` | ${c.cp || ''} ${c.strike || ''}` : '';
 
@@ -1095,11 +1334,23 @@ function renderContractsGrid() {
     const desc = (c.contractdescription || '').trim();
     const hasDifferentDesc = desc && desc.toLowerCase() !== fullName.toLowerCase();
 
+    const accountsBadges = (c.accounts || []).map(acc => 
+      `<span class="contract-account-badge">${acc}</span>`
+    ).join(' ');
+
     return `
-      <div class="contract-card ${isSelected ? 'selected' : ''}" data-code="${c.contractcode}">
+      <div class="contract-card ${isSelected ? 'selected' : ''}" data-code="${c.contractcode}" data-contract-id="${contractKey}">
         <div class="flex justify-between items-start">
-          <span class="font-mono text-base font-extrabold text-gold">${c.contractcode}</span>
-          <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 font-mono">${c.sectyp || 'FUT'}</span>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-base font-extrabold text-gold">${c.contractcode}</span>
+            <div class="flex items-center gap-1">${accountsBadges}</div>
+          </div>
+          <div class="flex items-center gap-1.5">
+            <span class="contract-select-pill text-[10px] font-bold px-2 py-0.5 rounded-full font-mono transition ${isSelected ? 'bg-gold text-obsidian shadow-sm' : 'bg-white/10 text-slateText-muted'}">
+              ${isSelected ? '✓ Selected' : 'Select'}
+            </span>
+            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 font-mono">${c.sectyp || 'FUT'}</span>
+          </div>
         </div>
         <div class="mt-1.5 space-y-1">
           <div class="text-xs font-semibold text-slateText-primary truncate" title="${fullName || c.contractcode}">
@@ -1122,17 +1373,28 @@ function renderContractsGrid() {
 
   grid.querySelectorAll('.contract-card').forEach(card => {
     card.addEventListener('click', () => {
-      const code = card.dataset.code;
-      if (STATE.selectedContracts.has(code)) {
-        STATE.selectedContracts.delete(code);
+      const contractId = card.dataset.contractId || card.dataset.code;
+      if (STATE.selectedContracts.has(contractId)) {
+        STATE.selectedContracts.delete(contractId);
       } else {
-        STATE.selectedContracts.add(code);
+        STATE.selectedContracts.add(contractId);
       }
-      card.classList.toggle('selected', STATE.selectedContracts.has(code));
+      const isSel = STATE.selectedContracts.has(contractId);
+      card.classList.toggle('selected', isSel);
+      const pill = card.querySelector('.contract-select-pill');
+      if (pill) {
+        pill.textContent = isSel ? '✓ Selected' : 'Select';
+        pill.className = `contract-select-pill text-[10px] font-bold px-2 py-0.5 rounded-full font-mono transition ${isSel ? 'bg-gold text-obsidian shadow-sm' : 'bg-white/10 text-slateText-muted'}`;
+      }
+      syncSelectedContractCounters();
+      updateStep2RouteWarnings();
       updateBasketUI();
       persistSession();
     });
   });
+
+  syncSelectedContractCounters();
+  updateStep2RouteWarnings();
 }
 
 // ==========================================================================
@@ -1217,7 +1479,7 @@ async function loadTradesForAllocation() {
   tbody.innerHTML = '<tr><td colspan="10" class="py-8 text-center text-slateText-muted font-sans">Loading trade executions...</td></tr>';
 
   const accounts = STATE.routes.map(r => r.from);
-  const contractCodes = Array.from(STATE.selectedContracts);
+  const contractIds = Array.from(STATE.selectedContracts);
 
   try {
     const res = await fetch('/api/trades', {
@@ -1225,29 +1487,59 @@ async function loadTradesForAllocation() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         accounts: accounts,
-        contract_codes: contractCodes,
-        product: STATE.selectedProduct
+        contract_ids: contractIds,
+        contract_codes: contractIds,
+        product: contractIds.length > 0 ? 'ALL' : STATE.selectedProduct
       })
     });
     const data = await res.json();
     STATE.trades = data.trades || [];
 
-    // Initialize allocations for any new trades
+    // Initialize allocations for any new trades with destination routing
     STATE.trades.forEach(t => {
+      const matchingRoutes = STATE.routes.filter(r => r.from === t.account);
+      const defaultTo = matchingRoutes.length > 0 ? matchingRoutes[0].to : '';
       if (!STATE.allocations[t.row_id]) {
         STATE.allocations[t.row_id] = {
           selected: true,
           transfer_qty: t.qtybalance,
-          custom_price: determineInitialPrice(t)
+          custom_price: determineInitialPrice(t),
+          to_account: defaultTo
         };
+      } else if (!STATE.allocations[t.row_id].to_account && defaultTo) {
+        STATE.allocations[t.row_id].to_account = defaultTo;
       }
     });
 
     renderTradesAllocationTable();
+    updateStep3RouteWarnings();
     updateBasketUI();
     persistSession();
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="10" class="py-8 text-center text-red-400 font-sans">Failed to load trades: ${err.message}</td></tr>`;
+  }
+}
+
+function updateStep3RouteWarnings() {
+  const warnEl = document.getElementById('step3-routes-warning');
+  const warnTextEl = document.getElementById('step3-routes-warning-text');
+  if (!warnEl || !warnTextEl) return;
+
+  if (STATE.routes.length <= 1) {
+    warnEl.classList.add('hidden');
+    return;
+  }
+
+  const sendersInTrades = new Set(STATE.trades.map(t => t.account));
+  const missingRoutes = STATE.routes.filter(r => !sendersInTrades.has(r.from));
+  if (missingRoutes.length > 0) {
+    warnTextEl.innerHTML = `
+      <div><strong>Notice:</strong> Route(s) with <strong>0 trades</strong>: ${missingRoutes.map(r => `<span class="font-mono font-bold">${r.from} &rarr; ${r.to}</span>`).join(', ')}.</div>
+      <div class="text-[11px] text-amber-300/80">These route(s) had no contracts selected in Step 2 and will be omitted from the final transfer file. Go back to Step 2 to select their contracts if needed.</div>
+    `;
+    warnEl.classList.remove('hidden');
+  } else {
+    warnEl.classList.add('hidden');
   }
 }
 
@@ -1282,7 +1574,13 @@ function renderTradesAllocationTable() {
   let totalTrades = 0;
 
   tbody.innerHTML = STATE.trades.map(t => {
-    const alloc = STATE.allocations[t.row_id] || { selected: true, transfer_qty: t.qtybalance, custom_price: t.price };
+    const matchingRoutes = STATE.routes.filter(r => r.from === t.account);
+    const defaultTo = matchingRoutes.length > 0 ? matchingRoutes[0].to : '';
+    const alloc = STATE.allocations[t.row_id] || { selected: true, transfer_qty: t.qtybalance, custom_price: t.price, to_account: defaultTo };
+    if (!alloc.to_account && defaultTo) {
+      alloc.to_account = defaultTo;
+    }
+
     if (alloc.selected) {
       totalLots += parseFloat(alloc.transfer_qty) || 0;
       totalTrades++;
@@ -1298,12 +1596,23 @@ function renderTradesAllocationTable() {
     const hasDifferentDesc = desc && desc.toLowerCase() !== fullName.toLowerCase();
     const fullTooltip = [t.contractcode, fullName, hasDifferentDesc ? desc : ''].filter(Boolean).join(' - ');
 
+    const routeSelectHtml = matchingRoutes.length > 1
+      ? `<div class="mt-1">
+           <select class="select-route-dest px-1.5 py-0.5 rounded bg-navy-input border border-white/10 text-[10px] font-mono text-emerald-300" data-id="${t.row_id}">
+             ${matchingRoutes.map(mr => `<option value="${mr.to}" ${alloc.to_account === mr.to ? 'selected' : ''}>&rarr; ${mr.to}</option>`).join('')}
+           </select>
+         </div>`
+      : `<div class="text-[10px] text-emerald-400/80 font-mono mt-0.5">&rarr; ${alloc.to_account || (matchingRoutes[0]?.to || '')}</div>`;
+
     return `
       <tr class="hover:bg-gold/5 transition ${alloc.selected ? 'bg-gold/[0.02]' : 'opacity-60'}" data-row="${t.row_id}">
         <td class="p-3">
           <input type="checkbox" class="trade-row-checkbox accent-gold" data-id="${t.row_id}" ${alloc.selected ? 'checked' : ''}>
         </td>
-        <td class="p-3 font-bold text-slateText-primary">${t.account}</td>
+        <td class="p-3 font-bold text-slateText-primary">
+          <div>${t.account}</div>
+          ${routeSelectHtml}
+        </td>
         <td class="p-3 text-[10px]"><span class="px-1.5 py-0.5 rounded bg-white/10 font-bold">${t.sectyp || 'FUT'}</span></td>
         <td class="p-3 text-xs max-w-[280px]" title="${fullTooltip}">
           <div class="font-mono font-bold text-gold">${t.contractcode}</div>
@@ -1339,6 +1648,16 @@ function renderTradesAllocationTable() {
       renderTradesAllocationTable();
       updateBasketUI();
       persistSession();
+    });
+  });
+
+  tbody.querySelectorAll('.select-route-dest').forEach(sel => {
+    sel.addEventListener('change', () => {
+      const rid = sel.dataset.id;
+      if (STATE.allocations[rid]) {
+        STATE.allocations[rid].to_account = sel.value;
+        persistSession();
+      }
     });
   });
 
@@ -1406,6 +1725,44 @@ function bindStep4ReviewAndExport() {
   document.getElementById('btn-rebuild-preview').addEventListener('click', buildPreviewTable);
   document.getElementById('btn-download-excel').addEventListener('click', handleExcelDownload);
   document.getElementById('btn-download-excel-bottom').addEventListener('click', handleExcelDownload);
+
+  const handleStartNewFile = () => {
+    if (confirm('Start with a new file? This will reset all current routes, contracts, allocations, and preview data.')) {
+      clearSession();
+    }
+  };
+
+  document.getElementById('btn-start-new-file-step4')?.addEventListener('click', handleStartNewFile);
+  document.getElementById('btn-start-new-file-step4-bottom')?.addEventListener('click', handleStartNewFile);
+
+  const inputFilename = document.getElementById('input-export-filename');
+  const btnClearFilename = document.getElementById('btn-clear-export-filename');
+
+  function updateFilenameClearBtn() {
+    if (btnClearFilename && inputFilename) {
+      btnClearFilename.classList.toggle('hidden', !inputFilename.value);
+    }
+  }
+
+  if (inputFilename) {
+    inputFilename.addEventListener('input', () => {
+      updateFilenameClearBtn();
+      STATE.exportFilename = inputFilename.value.trim();
+      persistSession();
+    });
+  }
+
+  if (btnClearFilename) {
+    btnClearFilename.addEventListener('click', () => {
+      if (inputFilename) {
+        inputFilename.value = '';
+        updateFilenameClearBtn();
+        STATE.exportFilename = '';
+        inputFilename.focus();
+        persistSession();
+      }
+    });
+  }
 }
 
 function generateDescriptiveFilename() {
@@ -1413,10 +1770,10 @@ function generateDescriptiveFilename() {
   if (STATE.routes.length === 1) {
     return `${STATE.clientGroup}.Transfer.${dateStr}_${STATE.routes[0].from}_TO_${STATE.routes[0].to}.xlsx`;
   }
-  const fromTag = STATE.routes.map(r => r.from).slice(0, 2).join('+');
-  const more = STATE.routes.length > 2 ? `(+${STATE.routes.length - 2}Accts)` : '';
-  const toTag = STATE.routes[0].to;
-  return `${STATE.clientGroup}.Transfer.${dateStr}_FROM_${fromTag}${more}_TO_${toTag}.xlsx`;
+  const fromTag = Array.from(new Set(STATE.routes.map(r => r.from))).slice(0, 2).join('+');
+  const moreFrom = new Set(STATE.routes.map(r => r.from)).size > 2 ? `(+${new Set(STATE.routes.map(r => r.from)).size - 2}Accts)` : '';
+  const toTag = Array.from(new Set(STATE.routes.map(r => r.to))).slice(0, 2).join('+');
+  return `${STATE.clientGroup}.Transfer.${dateStr}_FROM_${fromTag}${moreFrom}_TO_${toTag}.xlsx`;
 }
 
 async function buildPreviewTable() {
@@ -1427,21 +1784,21 @@ async function buildPreviewTable() {
   const thead = document.getElementById('excel-thead');
 
   const allocationPayload = [];
-  STATE.routes.forEach(route => {
-    STATE.trades.forEach(t => {
-      if (t.account === route.from) {
-        const alloc = STATE.allocations[t.row_id];
-        if (alloc && alloc.selected && alloc.transfer_qty > 0) {
-          allocationPayload.push({
-            row_id: t.row_id,
-            from_account: route.from,
-            to_account: route.to,
-            transfer_qty: alloc.transfer_qty,
-            custom_price: alloc.custom_price
-          });
-        }
+  STATE.trades.forEach(t => {
+    const alloc = STATE.allocations[t.row_id];
+    if (alloc && alloc.selected && alloc.transfer_qty > 0) {
+      const matchingRoutes = STATE.routes.filter(r => r.from === t.account);
+      const toAcc = alloc.to_account || (matchingRoutes.length > 0 ? matchingRoutes[0].to : null);
+      if (toAcc) {
+        allocationPayload.push({
+          row_id: t.row_id,
+          from_account: t.account,
+          to_account: toAcc,
+          transfer_qty: alloc.transfer_qty,
+          custom_price: alloc.custom_price
+        });
       }
-    });
+    }
   });
 
   if (allocationPayload.length === 0) {
@@ -1479,11 +1836,35 @@ async function buildPreviewTable() {
 
     document.getElementById('preview-total-records').textContent = data.summary?.total_records || '0';
 
+    // Render Step 4 route status pills
+    const routeCounts = {};
+    allocationPayload.forEach(a => {
+      const key = `${a.from_account} -> ${a.to_account}`;
+      routeCounts[key] = (routeCounts[key] || 0) + 1;
+    });
+
+    const routesSummaryEl = document.getElementById('step4-routes-summary');
+    if (routesSummaryEl) {
+      routesSummaryEl.innerHTML = STATE.routes.map(r => {
+        const key = `${r.from} -> ${r.to}`;
+        const cnt = routeCounts[key] || 0;
+        if (cnt > 0) {
+          return `<span class="px-2.5 py-1 rounded-md bg-emerald-500/15 text-emerald-300 font-mono font-bold border border-emerald-500/30">✓ ${r.from} &rarr; ${r.to}: ${cnt} trades</span>`;
+        } else {
+          return `<span class="px-2.5 py-1 rounded-md bg-amber-500/15 text-amber-300 font-mono font-bold border border-amber-500/30" title="0 trades allocated for this route">⚠️ ${r.from} &rarr; ${r.to}: 0 trades (Excluded)</span>`;
+        }
+      }).join(' ');
+    }
+
     // Auto-generate clear descriptive filename
     if (!STATE.exportFilename) {
       STATE.exportFilename = generateDescriptiveFilename();
     }
-    document.getElementById('input-export-filename').value = STATE.exportFilename;
+    const filenameInp = document.getElementById('input-export-filename');
+    if (filenameInp) {
+      filenameInp.value = STATE.exportFilename;
+      document.getElementById('btn-clear-export-filename')?.classList.toggle('hidden', !STATE.exportFilename);
+    }
 
   } catch (err) {
     hideLoading();

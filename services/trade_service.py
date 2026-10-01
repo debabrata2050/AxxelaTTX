@@ -151,7 +151,10 @@ class TradeService:
         if sub_df.empty:
             return {"contracts": [], "total_contracts": 0, "total_lots": 0}
 
-        group_cols = ["contractcode"]
+        group_cols = []
+        if "__contract_id__" in sub_df.columns:
+            group_cols.append("__contract_id__")
+        group_cols.append("contractcode")
         for opt_col in ("contractfullname", "contractdescription", "sectyp", "contractexpiry", "expirydate", "strike", "cp"):
             if opt_col in sub_df.columns:
                 group_cols.append(opt_col)
@@ -188,6 +191,7 @@ class TradeService:
                 lots = 0
             total_lots += lots
             records.append({
+                "contract_id": sanitize_json_val(row.get("__contract_id__", row.get("contractcode"))),
                 "contractcode": sanitize_json_val(row.get("contractcode")),
                 "contractfullname": sanitize_json_val(row.get("contractfullname")),
                 "contractdescription": sanitize_json_val(row.get("contractdescription")),
@@ -211,7 +215,8 @@ class TradeService:
     def get_trades(
         self,
         accounts: List[str],
-        contract_codes: List[str],
+        contract_ids: Optional[List[str]] = None,
+        contract_codes: Optional[List[str]] = None,
         product: str = "ALL"
     ) -> List[Dict[str, Any]]:
         if self.df is None:
@@ -223,13 +228,17 @@ class TradeService:
             acc_list = [a.strip().upper() for a in accounts if a.strip()]
             mask &= self.df["__account__"].str.upper().isin(acc_list)
 
-        if product and product.upper() != "ALL":
+        if contract_ids:
+            c_ids = [c.strip().upper() for c in contract_ids if c.strip()]
+            if c_ids and "__contract_id__" in self.df.columns:
+                mask &= self.df["__contract_id__"].str.upper().isin(c_ids)
+        elif contract_codes:
+            c_list = [c.strip().upper() for c in contract_codes if c.strip()]
+            if c_list:
+                mask &= self.df["contractcode"].fillna("").str.strip().str.upper().isin(c_list)
+        elif product and product.upper() != "ALL":
             if "sectyp" in self.df.columns:
                 mask &= (self.df["sectyp"].fillna("").str.strip().str.upper() == product.upper())
-
-        if contract_codes:
-            c_list = [c.strip().upper() for c in contract_codes if c.strip()]
-            mask &= self.df["contractcode"].fillna("").str.strip().str.upper().isin(c_list)
 
         sub_df = self.df[mask]
         trades = []
@@ -246,6 +255,7 @@ class TradeService:
 
             trades.append({
                 "row_id": str(row["__row_id__"]),
+                "contract_id": sanitize_json_val(row.get("__contract_id__")),
                 "account": sanitize_json_val(row.get("__account__")),
                 "sectyp": sanitize_json_val(row.get("sectyp")),
                 "contractcode": sanitize_json_val(row.get("contractcode")),
@@ -338,7 +348,7 @@ class TradeService:
         for idx, r in enumerate(raw_rows, start=1):
             if r is None or not r or all(c is None or str(c).strip() == "" for c in r):
                 parsed_rows.append([None] * len(EXCEL_HEADERS))
-                separator_indices.add(idx)
+                separator_indices.add(idx + 1)
                 continue
             parsed_rows.append(r)
 

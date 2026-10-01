@@ -49,11 +49,11 @@ class InstitutionalExcelExporter:
         max_col = len(EXCEL_HEADERS)
 
         for r in range(1, max_row + 1):
-            if r in separator_row_indices:
-                continue
-
-            # Check if all cells in row are empty/None
-            is_empty = all(ws.cell(row=r, column=c).value is None for c in range(1, max_col + 1))
+            # Check if all cells in row are empty/whitespace (separator row)
+            is_empty = all(
+                ws.cell(row=r, column=c).value is None or str(ws.cell(row=r, column=c).value).strip() == ""
+                for c in range(1, max_col + 1)
+            )
             if is_empty:
                 continue
 

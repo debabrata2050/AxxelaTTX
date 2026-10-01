@@ -26,11 +26,13 @@ def get_contracts():
 def get_trades():
     data = request.json or {}
     accounts = data.get("accounts", [])
+    contract_ids = data.get("contract_ids", [])
     contract_codes = data.get("contract_codes", [])
     product = data.get("product", "ALL")
 
     trades = trade_service.get_trades(
         accounts=accounts,
+        contract_ids=contract_ids,
         contract_codes=contract_codes,
         product=product
     )

@@ -116,11 +116,12 @@ def convert_trade_transfer(
         filename = f"{meta['client_group']}.Transfer.{date_compact}_{from_tag}_TO_{to_tag}.xlsx"
         output_xlsx_path = os.path.join(base_dir, filename)
 
-    # Export
+    # Export (add 1 to separator indices for EXCEL_HEADERS row)
+    ws_separator_indices = {idx + 1 for idx in separator_indices}
     InstitutionalExcelExporter.export(
         rows=all_rows,
         output_xlsx_path=output_xlsx_path,
-        separator_row_indices=set(separator_indices)
+        separator_row_indices=ws_separator_indices
     )
 
     print(f"Generated transfer file: {output_xlsx_path} ({summary['total_records']} records)")

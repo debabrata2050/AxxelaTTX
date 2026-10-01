@@ -48,6 +48,18 @@ class CsvTradeReader:
         df = df[df["__account__"] != ""]
         df["__row_id__"] = df.index.astype(str)
 
+        # Build unique contract identifier
+        id_cols = ["contractcode", "sectyp", "contractexpiry", "expirydate", "strike", "cp", "contractdescription"]
+        parts = [
+            df[c].fillna("").astype(str).str.strip().str.upper() if c in df.columns
+            else pd.Series("", index=df.index)
+            for c in id_cols
+        ]
+        contract_id_series = parts[0]
+        for p in parts[1:]:
+            contract_id_series = contract_id_series + "|" + p
+        df["__contract_id__"] = contract_id_series
+
         # Client group extraction
         client_group = "SYM"
         if "clientgroup" in df.columns:
