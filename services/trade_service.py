@@ -1,5 +1,6 @@
 import os
 import glob
+import math
 import tempfile
 from typing import Dict, Any, List, Optional, Tuple
 import pandas as pd
@@ -12,6 +13,31 @@ from core.allocator import TradeTransferAllocator
 from core.exporter import InstitutionalExcelExporter
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def sanitize_json_val(val: Any) -> Any:
+    """Replaces NaN, pd.NA, and Infinity with None so JSON serialization adheres to RFC 8259."""
+    if val is None or pd.isna(val):
+        return None
+    if isinstance(val, float):
+        if math.isnan(val) or math.isinf(val):
+            return None
+    return val
+
+
+def sanitize_for_json(data: Any) -> Any:
+    """Recursively converts all NaNs, Infs, and NA values into None for valid JSON serialization."""
+    if isinstance(data, dict):
+        return {k: sanitize_for_json(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [sanitize_for_json(item) for item in data]
+    elif isinstance(data, float):
+        if math.isnan(data) or math.isinf(data):
+            return None
+        return data
+    elif data is None or pd.isna(data):
+        return None
+    return data
 
 
 class TradeService:
@@ -57,14 +83,14 @@ class TradeService:
         new_df, new_meta = CsvTradeReader.read_and_validate(filepath)
 
         # Build row_id map for rapid O(1) trade lookup
-        new_map = {str(r["__row_id__"]): r.to_dict() for _, r in new_df.iterrows()}
+        new_map = {str(r["__row_id__"]): {k: sanitize_json_val(v) for k, v in r.to_dict().items()} for _, r in new_df.iterrows()}
 
         self.df = new_df
         self.metadata = new_meta
         self.file_path = filepath
         self.row_id_map = new_map
 
-        return {
+        return sanitize_for_json({
             "success": True,
             "filename": new_meta["filename"],
             "total_rows": new_meta["total_rows"],
@@ -72,13 +98,13 @@ class TradeService:
             "client_group": new_meta["client_group"],
             "default_date": new_meta["default_date"],
             "products": new_meta["products"]
-        }
+        })
 
     def get_status(self) -> Dict[str, Any]:
         avail_files = self.scan_workspace_csvs()
         is_loaded = self.df is not None
 
-        return {
+        return sanitize_for_json({
             "loaded": is_loaded,
             "current_file": self.file_path,
             "filename": self.metadata.get("filename"),
@@ -88,7 +114,7 @@ class TradeService:
             "default_date": self.metadata.get("default_date"),
             "products": self.metadata.get("products", []),
             "available_files": avail_files
-        }
+        })
 
     def search_accounts(self, query: str = "") -> List[Dict[str, Any]]:
         accounts = self.metadata.get("accounts_summary", [])
@@ -155,27 +181,29 @@ class TradeService:
         total_lots = 0
         for _, row in grouped.iterrows():
             lots = row["total_lots"]
+            if isinstance(lots, float) and (math.isnan(lots) or math.isinf(lots)):
+                lots = 0
             total_lots += lots
             records.append({
-                "contractcode": row.get("contractcode"),
-                "contractfullname": row.get("contractfullname"),
-                "contractdescription": row.get("contractdescription"),
-                "sectyp": row.get("sectyp"),
-                "contractexpiry": row.get("contractexpiry"),
-                "expirydate": row.get("expirydate"),
-                "strike": row.get("strike"),
-                "cp": row.get("cp"),
-                "trade_count": int(row["trade_count"]),
+                "contractcode": sanitize_json_val(row.get("contractcode")),
+                "contractfullname": sanitize_json_val(row.get("contractfullname")),
+                "contractdescription": sanitize_json_val(row.get("contractdescription")),
+                "sectyp": sanitize_json_val(row.get("sectyp")),
+                "contractexpiry": sanitize_json_val(row.get("contractexpiry")),
+                "expirydate": sanitize_json_val(row.get("expirydate")),
+                "strike": sanitize_json_val(row.get("strike")),
+                "cp": sanitize_json_val(row.get("cp")),
+                "trade_count": int(row["trade_count"]) if pd.notna(row["trade_count"]) else 0,
                 "available_lots": lots,
                 "accounts": row["accounts"]
             })
 
         records.sort(key=lambda x: x["available_lots"], reverse=True)
-        return {
+        return sanitize_for_json({
             "contracts": records[:150],
             "total_contracts": len(records),
             "total_lots": total_lots
-        }
+        })
 
     def get_trades(
         self,
@@ -205,31 +233,34 @@ class TradeService:
         for _, row in sub_df.iterrows():
             qty_raw = row.get("qtybalance")
             try:
-                q_num = float(qty_raw) if qty_raw else 0
-                q_val = int(q_num) if q_num.is_integer() else q_num
-            except ValueError:
-                q_val = qty_raw
+                q_num = float(qty_raw) if qty_raw is not None and pd.notna(qty_raw) else 0.0
+                if math.isnan(q_num) or math.isinf(q_num):
+                    q_val = 0
+                else:
+                    q_val = int(q_num) if q_num.is_integer() else q_num
+            except (ValueError, TypeError):
+                q_val = sanitize_json_val(qty_raw)
 
             trades.append({
                 "row_id": str(row["__row_id__"]),
-                "account": row.get("__account__"),
-                "sectyp": row.get("sectyp"),
-                "contractcode": row.get("contractcode"),
-                "contractfullname": row.get("contractfullname"),
-                "contractdescription": row.get("contractdescription"),
-                "contractexpiry": row.get("contractexpiry"),
-                "expirydate": row.get("expirydate"),
-                "strike": row.get("strike"),
-                "cp": row.get("cp"),
-                "transactiontype": row.get("transactiontype"),
+                "account": sanitize_json_val(row.get("__account__")),
+                "sectyp": sanitize_json_val(row.get("sectyp")),
+                "contractcode": sanitize_json_val(row.get("contractcode")),
+                "contractfullname": sanitize_json_val(row.get("contractfullname")),
+                "contractdescription": sanitize_json_val(row.get("contractdescription")),
+                "contractexpiry": sanitize_json_val(row.get("contractexpiry")),
+                "expirydate": sanitize_json_val(row.get("expirydate")),
+                "strike": sanitize_json_val(row.get("strike")),
+                "cp": sanitize_json_val(row.get("cp")),
+                "transactiontype": sanitize_json_val(row.get("transactiontype")),
                 "qtybalance": q_val,
-                "price": row.get("price"),
-                "settle": row.get("settle"),
-                "currency": row.get("currency"),
-                "datestr": row.get("datestr")
+                "price": sanitize_json_val(row.get("price")),
+                "settle": sanitize_json_val(row.get("settle")),
+                "currency": sanitize_json_val(row.get("currency")),
+                "datestr": sanitize_json_val(row.get("datestr"))
             })
 
-        return trades
+        return sanitize_for_json(trades)
 
     def build_preview(
         self,
@@ -275,17 +306,17 @@ class TradeService:
                 if hasattr(cell_val, "strftime"):
                     row_cells.append(cell_val.strftime("%Y-%m-%d"))
                 else:
-                    row_cells.append(cell_val)
+                    row_cells.append(sanitize_json_val(cell_val))
             formatted_rows.append({
                 "is_separator": is_sep,
                 "cells": row_cells
             })
 
-        return {
+        return sanitize_for_json({
             "headers": EXCEL_HEADERS,
             "rows": formatted_rows,
             "summary": summary
-        }
+        })
 
     def export_excel(self, raw_rows: List[List[Any]], filename: str) -> str:
         if not raw_rows:
