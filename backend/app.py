@@ -7,7 +7,7 @@ from api import file_bp, trade_bp, export_bp
 
 def create_app() -> Flask:
     """
-    Application Factory for Trade Transfer Engine Backend.
+    Application Factory for Trade Transfer Backend.
     Provides REST API endpoints for Next.js frontend.
     """
     app = Flask(__name__)
@@ -25,7 +25,7 @@ def create_app() -> Flask:
 
     @app.route("/api/health", methods=["GET"])
     def health():
-        return jsonify({"status": "healthy", "service": "Trade Transfer Engine Backend"})
+        return jsonify({"status": "healthy", "service": "Trade Transfer Backend"})
 
     @app.errorhandler(Exception)
     def handle_exception(e):

@@ -57,10 +57,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
             </div>
             <div>
               <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)]">
-                Axxela Quant
+                Axxela
               </div>
               <div className="text-[10px] text-[var(--accent-gold)] font-mono font-medium">
-                Trade Transfer Engine
+                Trade Transfer
               </div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
         </button>
         {!isSidebarCollapsed && (
           <div className="text-[10px] text-center text-[var(--text-muted)] font-mono">
-            Axxela Quant v3.4.2
+            Axxela v3.4.2
           </div>
         )}
       </div>

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { ConsoleBanner } from '@/components/ConsoleBanner';
 
 export const metadata: Metadata = {
-  title: 'Axxela Quant | Trade Transfer Engine',
+  title: 'Axxela TTX | Trade Transfer',
   description: 'Institutional Multi-Account Position Transfer & Excel Converter',
 };
 
@@ -22,6 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body className="h-full flex flex-col bg-[var(--canvas-bg)] text-[var(--text-main)] antialiased" suppressHydrationWarning>
+        <ConsoleBanner />
         {children}
       </body>
     </html>
