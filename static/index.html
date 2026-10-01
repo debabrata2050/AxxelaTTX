@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Axxela Desk | Trade Transfer & Allocation</title>
+  <link rel="icon" type="image/svg+xml" href="/static/assets/logo.svg">
+
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS v4 Browser CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --color-obsidian: var(--canvas-bg);
+      --color-navy-card: var(--card-bg);
+      --color-navy-cardHover: var(--card-hover);
+      --color-navy-sidebar: var(--sidebar-bg);
+      --color-navy-input: var(--input-bg);
+      --color-navy-header: var(--header-bg);
+      --color-gold: var(--accent-gold);
+      --color-gold-amber: var(--accent-amber);
+      --color-gold-dark: var(--accent-dark);
+      --color-gold-glow: var(--accent-glow);
+      --color-slateText-primary: var(--text-main);
+      --color-slateText-secondary: var(--text-sub);
+      --color-slateText-muted: var(--text-muted);
+      --font-sans: 'Plus Jakarta Sans', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --shadow-gold: var(--shadow-gold);
+      --shadow-card: var(--shadow-card);
+    }
+  </style>
+
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="bg-obsidian text-slateText-primary font-sans min-h-screen overflow-x-hidden antialiased">
+
+  <!-- FULLSCREEN LOADING SPINNER OVERLAY -->
+  <div id="loading-overlay" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-[999] flex flex-col items-center justify-center hidden">
+    <div class="relative w-16 h-16">
+      <div class="w-16 h-16 rounded-full border-4 border-gold/20 border-t-gold animate-spin"></div>
+      <img src="/static/assets/logo.svg" alt="Axxela" class="w-8 h-8 absolute inset-0 m-auto opacity-80">
+    </div>
+    <p id="loading-text" class="mt-4 text-sm font-semibold tracking-wide text-gold">Processing trade data...</p>
+    <p id="loading-subtext" class="text-xs text-slateText-muted mt-1">Please hold on</p>
+  </div>
+
+  <!-- SESSION RESTORED TOAST BANNER -->
+  <div id="session-toast" class="bg-navy-card border-b border-gold-amber/30 px-6 py-2.5 flex items-center justify-between shadow-md text-xs z-50 hidden">
+    <div class="flex items-center gap-2">
+      <span class="w-2 h-2 rounded-full bg-gold animate-pulse"></span>
+      <span class="text-slateText-secondary">Resumed active transfer session: <strong id="session-file-name" class="text-slateText-primary font-mono"></strong></span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="btn-discard-session" class="text-red-400 hover:text-red-300 font-semibold underline underline-offset-2 transition">Discard & Start Fresh</button>
+      <button id="btn-close-toast" class="text-slateText-muted hover:text-white">&times;</button>
+    </div>
+  </div>
+
+  <div class="flex min-h-screen">
+    <!-- LEFT SIDEBAR -->
+    <aside id="app-sidebar" class="w-[290px] bg-navy-sidebar border-r border-white/5 flex flex-col flex-shrink-0 sticky top-0 h-screen z-40 transition-all duration-300">
+      
+      <!-- BRAND & TOGGLE -->
+      <div class="p-5 border-b border-white/5 flex items-center justify-between">
+        <div class="flex items-center gap-3 overflow-hidden" id="brand-container">
+          <div class="w-10 h-10 flex items-center justify-center flex-shrink-0">
+            <img src="/static/assets/logo.svg" alt="Axxela Logo" class="w-full h-full object-contain">
+          </div>
+          <div class="sidebar-text truncate">
+            <h1 class="text-sm font-extrabold tracking-wider text-gold truncate">AXXELA DESK</h1>
+            <p class="text-[10px] text-slateText-muted font-medium tracking-tight truncate">Institutional Operations</p>
+          </div>
+        </div>
+        <button id="btn-toggle-sidebar" class="text-slateText-muted hover:text-gold p-1.5 rounded-md hover:bg-white/5 transition" title="Toggle Sidebar">
+          <svg class="w-5 h-5 transition-transform" id="collapse-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/></svg>
+        </button>
+      </div>
+
+      <!-- WORKFLOW STEPPER -->
+      <nav class="p-3 flex flex-col gap-1.5 flex-grow overflow-y-auto" id="sidebar-nav">
+        <div class="sidebar-text px-3 py-1.5 text-[10px] font-bold tracking-widest text-slateText-muted uppercase">Workflow</div>
+
+        <!-- Step 0: File Onboarding -->
+        <button class="nav-item w-full flex items-center gap-3 p-3 rounded-xl text-left transition border border-transparent active" data-step="0" id="nav-step-0">
+          <span class="step-num w-6 h-6 rounded-full bg-white/10 text-xs font-bold font-mono flex items-center justify-center flex-shrink-0">0</span>
+          <div class="sidebar-text flex flex-col truncate">
+            <span class="text-xs font-semibold tracking-tight">Load Trade CSV</span>
+            <span class="text-[10px] text-slateText-muted truncate" id="nav-file-label">Select data file</span>
+          </div>
+        </button>
+
+        <!-- Step 1: Accounts -->
+        <button class="nav-item w-full flex items-center gap-3 p-3 rounded-xl text-left transition border border-transparent opacity-60" data-step="1" id="nav-step-1" disabled>
+          <span class="step-num w-6 h-6 rounded-full bg-white/10 text-xs font-bold font-mono flex items-center justify-center flex-shrink-0">1</span>
+          <div class="sidebar-text flex flex-col truncate">
+            <span class="text-xs font-semibold tracking-tight">Transfer Routes</span>
+            <span class="text-[10px] text-slateText-muted truncate">Sender & Recipient</span>
+          </div>
+        </button>
+
+        <!-- Step 2: Contracts -->
+        <button class="nav-item w-full flex items-center gap-3 p-3 rounded-xl text-left transition border border-transparent opacity-60" data-step="2" id="nav-step-2" disabled>
+          <span class="step-num w-6 h-6 rounded-full bg-white/10 text-xs font-bold font-mono flex items-center justify-center flex-shrink-0">2</span>
+          <div class="sidebar-text flex flex-col truncate">
+            <span class="text-xs font-semibold tracking-tight">Select Contracts</span>
+            <span class="text-[10px] text-slateText-muted truncate">Products & Symbols</span>
+          </div>
+        </button>
+
+        <!-- Step 3: Lots & Pricing -->
+        <button class="nav-item w-full flex items-center gap-3 p-3 rounded-xl text-left transition border border-transparent opacity-60" data-step="3" id="nav-step-3" disabled>
+          <span class="step-num w-6 h-6 rounded-full bg-white/10 text-xs font-bold font-mono flex items-center justify-center flex-shrink-0">3</span>
+          <div class="sidebar-text flex flex-col truncate">
+            <span class="text-xs font-semibold tracking-tight">Lots & Pricing</span>
+            <span class="text-[10px] text-slateText-muted truncate">Partial Qty & Settle</span>
+          </div>
+        </button>
+
+        <!-- Step 4: Review & Export -->
+        <button class="nav-item w-full flex items-center gap-3 p-3 rounded-xl text-left transition border border-transparent opacity-60" data-step="4" id="nav-step-4" disabled>
+          <span class="step-num w-6 h-6 rounded-full bg-white/10 text-xs font-bold font-mono flex items-center justify-center flex-shrink-0">4</span>
+          <div class="sidebar-text flex flex-col truncate">
+            <span class="text-xs font-semibold tracking-tight">Review & Export</span>
+            <span class="text-[10px] text-slateText-muted truncate">Live Edit & Download</span>
+          </div>
+        </button>
+      </nav>
+
+      <!-- PERSISTENT BASKET (Collapsed when sidebar collapsed) -->
+      <div class="sidebar-text m-3 p-4 bg-navy-card rounded-xl border border-gold-amber/20 border-b-2 border-b-gold-amber shadow-card" id="sidebar-basket-container">
+        <div class="flex items-center justify-between mb-3">
+          <span class="text-[11px] font-bold tracking-wider text-gold uppercase">Transfer Basket</span>
+          <span id="basket-badge-status" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-gold/10 text-gold">Ready</span>
+        </div>
+        <div class="space-y-1.5 text-xs">
+          <div class="flex justify-between text-slateText-secondary">
+            <span class="text-slateText-muted">Active Routes:</span>
+            <span id="basket-routes-val" class="font-mono font-bold text-slateText-primary">0 paired</span>
+          </div>
+          <div class="flex justify-between text-slateText-secondary">
+            <span class="text-slateText-muted">Contracts:</span>
+            <span id="basket-contracts-val" class="font-mono font-bold text-slateText-primary">All</span>
+          </div>
+          <div class="flex justify-between text-slateText-secondary">
+            <span class="text-slateText-muted">Total Lots:</span>
+            <span id="basket-lots-val" class="font-mono font-bold text-gold">0 Lots</span>
+          </div>
+          <div class="flex justify-between text-slateText-secondary">
+            <span class="text-slateText-muted">Pricing Mode:</span>
+            <span id="basket-price-val" class="font-mono font-bold text-slateText-primary">Market Price</span>
+          </div>
+        </div>
+        <button id="btn-reset-transfer" class="mt-3 w-full py-1 text-[11px] font-medium text-red-400/80 hover:text-red-400 border border-red-500/20 hover:border-red-500/40 rounded-lg transition">Clear Basket</button>
+      </div>
+
+      <!-- SIDEBAR FOOTER (Theme Switcher & File Info) -->
+      <div class="p-4 border-t border-white/5 space-y-3">
+        <div class="sidebar-text flex items-center justify-between text-xs">
+          <span class="text-[10px] font-bold uppercase tracking-wider text-slateText-muted">Theme</span>
+          <div class="inline-flex p-0.5 bg-navy-input rounded-full border border-white/10">
+            <button class="theme-toggle-btn px-2.5 py-0.5 rounded-full text-xs font-semibold transition active" data-theme="dark">Dark</button>
+            <button class="theme-toggle-btn px-2.5 py-0.5 rounded-full text-xs font-semibold transition text-slateText-muted" data-theme="light">Light</button>
+          </div>
+        </div>
+
+        <div class="sidebar-text flex items-center justify-between text-xs pt-1">
+          <div class="truncate max-w-[170px]">
+            <div id="sb-file-name" class="font-bold text-slateText-primary truncate">No file loaded</div>
+            <div id="sb-row-count" class="text-[10px] font-mono text-slateText-muted">0 trades</div>
+          </div>
+          <button id="btn-sidebar-switch-file" class="text-xs font-bold text-gold hover:underline">Change</button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-grow flex flex-col min-w-0 bg-obsidian">
+      
+      <!-- TOP STATUS BAR -->
+      <header class="h-14 px-8 border-b border-white/5 bg-navy-sidebar flex items-center justify-between sticky top-0 z-30">
+        <div class="flex items-center gap-3">
+          <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_#10b981]"></span>
+          <span class="text-xs text-slateText-secondary">
+            Desk Engine Status: <strong id="topbar-filename" class="text-slateText-primary font-mono font-bold">Awaiting CSV</strong>
+          </span>
+        </div>
+        <div class="flex items-center gap-4 text-xs font-mono">
+          <div class="px-3 py-1 rounded-full bg-navy-card border border-white/5 text-slateText-muted">
+            Accounts: <strong id="topbar-acc-count" class="text-gold font-bold">0</strong>
+          </div>
+          <div class="px-3 py-1 rounded-full bg-navy-card border border-white/5 text-slateText-muted">
+            Records: <strong id="topbar-trade-count" class="text-gold font-bold">0</strong>
+          </div>
+        </div>
+      </header>
+
+      <!-- ALERT MESSAGE BANNER -->
+      <div id="global-alert" class="mx-8 mt-4 p-4 rounded-xl border border-red-500/40 bg-red-950/40 text-red-200 text-xs flex items-start gap-3 shadow-lg hidden">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div class="flex-grow">
+          <strong id="global-alert-title" class="font-bold block text-sm mb-0.5">Validation Alert</strong>
+          <span id="global-alert-message">Message details</span>
+        </div>
+        <button id="btn-close-alert" class="text-red-400 hover:text-white">&times;</button>
+      </div>
+
+      <!-- WORKSPACE STEPS -->
+      <div class="p-8 max-w-7xl w-full mx-auto">
+
+        <!-- ==================== STEP 0: FILE ONBOARDING ==================== -->
+        <section class="step-view active space-y-6" id="view-step-0">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-slateText-primary">Step 0: Select Trade Export CSV File</h2>
+              <p class="text-sm text-slateText-muted mt-1">Upload or choose a trade file from the system. Headers will be validated strictly.</p>
+            </div>
+          </div>
+
+          <!-- DROPZONE & FILE UPLOAD CARD -->
+          <div class="p-8 rounded-2xl bg-navy-card border border-white/10 shadow-card">
+            <div id="csv-dropzone" class="border-2 border-dashed border-gold-amber/40 hover:border-gold rounded-xl p-8 text-center cursor-pointer transition bg-navy-input/50 hover:bg-navy-input">
+              <input type="file" id="file-input-upload" class="hidden" accept=".csv">
+              <div class="w-14 h-14 rounded-full bg-gold/10 text-gold mx-auto flex items-center justify-center mb-4 shadow-gold">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+              </div>
+              <h3 class="text-base font-bold text-slateText-primary mb-1">Click to Upload or Drag & Drop Trade CSV</h3>
+              <p class="text-xs text-slateText-muted">Supports any trade export file. Columns will be verified automatically.</p>
+            </div>
+
+            <!-- WORKSPACE CSV SELECTOR -->
+            <div class="mt-8 pt-6 border-t border-white/5">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-gold mb-3">Available CSV Files In Workspace:</h4>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-3" id="workspace-files-list">
+                <div class="p-4 text-center text-xs text-slateText-muted">Scanning workspace for CSVs...</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== STEP 1: ACCOUNTS ==================== -->
+        <section class="step-view space-y-6 hidden" id="view-step-1">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-slateText-primary">Step 1: Configure Transfer Accounts</h2>
+              <p class="text-sm text-slateText-muted mt-1">Select the sender accounts holding trades and assign recipient accounts.</p>
+            </div>
+            <button class="pill-btn primary" id="btn-to-step-2">
+              Next: Select Contracts
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+            </button>
+          </div>
+
+          <!-- ROUTE BUILDER -->
+          <div class="p-6 rounded-2xl bg-navy-card border border-white/10 border-t-2 border-t-gold shadow-card space-y-6">
+            <div>
+              <h3 class="text-base font-bold text-slateText-primary">Add Transfer Route (Many-to-Many)</h3>
+              <p class="text-xs text-slateText-muted mt-0.5">Map source accounts to designated destination clearing accounts.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+              <!-- Sender Account -->
+              <div>
+                <label class="block text-xs font-semibold text-slateText-secondary mb-1">Sender Account (From):</label>
+                <div class="relative">
+                  <input type="text" id="input-sender-account" class="w-full px-3.5 py-2.5 rounded-lg bg-navy-input border border-white/10 focus:border-gold focus:ring-1 focus:ring-gold outline-none text-xs font-mono text-slateText-primary transition" placeholder="Search accounts (e.g. EE006)..." autocomplete="off">
+                  <div id="sender-dropdown" class="absolute top-full left-0 right-0 mt-1 bg-navy-card border border-gold-amber/30 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-50 hidden"></div>
+                </div>
+              </div>
+
+              <!-- Recipient Account -->
+              <div>
+                <label class="block text-xs font-semibold text-slateText-secondary mb-1">Recipient Account (To):</label>
+                <input type="text" id="input-recipient-account" class="w-full px-3.5 py-2.5 rounded-lg bg-navy-input border border-white/10 focus:border-gold focus:ring-1 focus:ring-gold outline-none text-xs font-mono uppercase text-slateText-primary transition" placeholder="e.g. EEABC or EEXYZ">
+              </div>
+
+              <div>
+                <button id="btn-add-route" class="w-full py-2.5 px-4 rounded-xl bg-navy-cardHover hover:bg-gold hover:text-obsidian border border-white/10 hover:border-gold text-xs font-bold text-slateText-primary transition flex items-center justify-center gap-2">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                  Add Transfer Route
+                </button>
+              </div>
+            </div>
+
+            <!-- ACTIVE ROUTES LIST -->
+            <div class="p-4 rounded-xl bg-navy-input border border-white/5 space-y-3">
+              <div class="flex justify-between items-center text-xs">
+                <span class="font-bold text-slateText-secondary uppercase tracking-wider text-[11px]">Active Transfer Pairs:</span>
+                <span id="active-routes-count" class="px-2.5 py-0.5 rounded-full bg-gold/10 text-gold font-bold font-mono">0 Routes</span>
+              </div>
+              <div id="active-routes-list" class="space-y-2">
+                <div class="text-center py-4 text-xs text-slateText-muted">No transfer routes added yet.</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== STEP 2: CONTRACTS ==================== -->
+        <section class="step-view space-y-6 hidden" id="view-step-2">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-slateText-primary">Step 2: Filter Products & Contracts</h2>
+              <p class="text-sm text-slateText-muted mt-1">Select specific financial products (Futures/Options) and contracts to include.</p>
+            </div>
+            <div class="flex gap-3">
+              <button class="pill-btn secondary" data-goto-step="1">Back</button>
+              <button class="pill-btn primary" id="btn-to-step-3">
+                Next: Lots & Pricing
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- FILTERS BAR -->
+          <div class="p-4 rounded-2xl bg-navy-card border border-white/10 shadow-card flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-semibold text-slateText-muted">Product:</span>
+              <div class="flex gap-1.5" id="product-chips">
+                <button class="chip-btn active" data-prod="ALL">All</button>
+                <button class="chip-btn" data-prod="FUT">Futures (FUT)</button>
+                <button class="chip-btn" data-prod="OPT">Options (OPT)</button>
+              </div>
+            </div>
+
+            <div class="flex-grow max-w-md">
+              <input type="text" id="search-contracts-input" class="w-full px-3.5 py-2 rounded-lg bg-navy-input border border-white/10 focus:border-gold focus:ring-1 focus:ring-gold outline-none text-xs text-slateText-primary" placeholder="Search contract code or description...">
+            </div>
+
+            <div class="flex gap-2">
+              <button id="btn-select-all-contracts" class="px-3 py-1.5 rounded-lg bg-navy-cardHover text-xs font-semibold text-slateText-secondary hover:text-white transition">Select All</button>
+              <button id="btn-clear-all-contracts" class="px-3 py-1.5 rounded-lg bg-navy-cardHover text-xs font-semibold text-slateText-secondary hover:text-white transition">Deselect All</button>
+            </div>
+          </div>
+
+          <!-- CONTRACTS GRID -->
+          <div class="space-y-3">
+            <div class="flex justify-between text-xs text-slateText-muted px-1">
+              <span>Matching Contracts (<strong id="contracts-counter" class="text-slateText-primary">0</strong>):</span>
+              <span>Available Lots: <strong id="contracts-lots-counter" class="text-gold font-mono">0</strong></span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[460px] overflow-y-auto pr-1" id="contracts-grid">
+              <div class="col-span-full py-8 text-center text-xs text-slateText-muted">Loading contracts...</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== STEP 3: PRICING & LOT ALLOCATION ==================== -->
+        <section class="step-view space-y-6 hidden" id="view-step-3">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-slateText-primary">Step 3: TradePrice Mode & Granular Lot Transfer</h2>
+              <p class="text-sm text-slateText-muted mt-1">Choose TradePrice source and fine-tune exact transferred lots per execution.</p>
+            </div>
+            <div class="flex gap-3">
+              <button class="pill-btn secondary" data-goto-step="2">Back</button>
+              <button class="pill-btn primary" id="btn-to-step-4">
+                Next: Review Excel Preview
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <!-- PRICING STRATEGY CARDS -->
+          <div class="p-6 rounded-2xl bg-navy-card border border-white/10 border-t-2 border-t-gold shadow-card space-y-4">
+            <h3 class="text-base font-bold text-slateText-primary">TradePrice Source Selection</h3>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <label class="pricing-card p-4 rounded-xl border border-white/10 bg-navy-input hover:border-gold-amber cursor-pointer transition flex items-start gap-3 active" data-mode="price">
+                <input type="radio" name="price-strategy-radio" value="price" checked class="mt-1 accent-gold">
+                <div>
+                  <div class="text-sm font-bold text-slateText-primary">OPD Market Price</div>
+                  <div class="text-xs text-slateText-muted mt-0.5">Use original executed trade price from CSV.</div>
+                  <span class="inline-block mt-2 text-[10px] font-bold text-gold uppercase tracking-wider">Default</span>
+                </div>
+              </label>
+
+              <label class="pricing-card p-4 rounded-xl border border-white/10 bg-navy-input hover:border-gold-amber cursor-pointer transition flex items-start gap-3" data-mode="settle">
+                <input type="radio" name="price-strategy-radio" value="settle" class="mt-1 accent-gold">
+                <div>
+                  <div class="text-sm font-bold text-slateText-primary">OPD Settlement Price</div>
+                  <div class="text-xs text-slateText-muted mt-0.5">Use exchange daily settle column from CSV.</div>
+                  <span class="inline-block mt-2 text-[10px] font-bold text-gold uppercase tracking-wider">Settle Mode</span>
+                </div>
+              </label>
+
+              <label class="pricing-card p-4 rounded-xl border border-white/10 bg-navy-input hover:border-gold-amber cursor-pointer transition flex items-start gap-3" data-mode="manual">
+                <input type="radio" name="price-strategy-radio" value="manual" class="mt-1 accent-gold">
+                <div class="w-full">
+                  <div class="text-sm font-bold text-slateText-primary">Global Fixed Price</div>
+                  <div class="text-xs text-slateText-muted mt-0.5">Apply custom price to all transferred lots.</div>
+                  <input type="number" step="any" id="input-manual-global-price" class="mt-2 w-full px-2.5 py-1.5 rounded-lg bg-navy-card border border-white/10 text-xs font-mono text-slateText-primary outline-none focus:border-gold hidden" placeholder="Enter fixed price (e.g. 7845.0)">
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- GRANULAR ALLOCATION TABLE -->
+          <div class="p-6 rounded-2xl bg-navy-card border border-white/10 shadow-card space-y-4">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="text-base font-bold text-slateText-primary">Execution Rows & Lot Allocation</h3>
+                <p class="text-xs text-slateText-muted mt-0.5">Edit transferred lots or override price individually per trade row.</p>
+              </div>
+              <div class="flex gap-2">
+                <button id="btn-fill-all-balance" class="px-3 py-1.5 rounded-lg bg-navy-cardHover hover:bg-white/10 text-xs font-bold text-slateText-secondary transition">Transfer Full Balance</button>
+                <button id="btn-reset-allocation" class="px-3 py-1.5 rounded-lg bg-navy-cardHover hover:bg-white/10 text-xs font-bold text-slateText-secondary transition">Reset</button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto rounded-xl border border-white/10 max-h-[420px]">
+              <table class="w-full text-left text-xs border-collapse font-sans">
+                <thead class="bg-navy-header sticky top-0 z-10 text-[11px] font-bold text-slateText-muted uppercase tracking-wider border-b border-white/10">
+                  <tr>
+                    <th class="p-3 w-10"><input type="checkbox" id="th-check-all-trades" checked class="accent-gold"></th>
+                    <th class="p-3">Account</th>
+                    <th class="p-3">Product</th>
+                    <th class="p-3">Symbol / Full Name</th>
+                    <th class="p-3">Side</th>
+                    <th class="p-3">Avail Lots</th>
+                    <th class="p-3 min-w-[150px]">Transfer Lots</th>
+                    <th class="p-3 min-w-[140px]">TradePrice</th>
+                    <th class="p-3">Expiry</th>
+                    <th class="p-3">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="trades-allocation-tbody" class="divide-y divide-white/5 font-mono">
+                  <tr><td colspan="10" class="py-8 text-center text-slateText-muted font-sans">No trades found.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="flex justify-end text-xs text-slateText-secondary pt-2">
+              <span>Selected for transfer: <strong id="alloc-lots-sum" class="text-gold font-bold font-mono">0 Lots</strong> across <strong id="alloc-trades-sum" class="text-slateText-primary font-mono">0 trades</strong></span>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== STEP 4: REVIEW & EXPORT ==================== -->
+        <section class="step-view space-y-6 hidden" id="view-step-4">
+          <div class="flex justify-between items-start">
+            <div>
+              <h2 class="text-2xl font-bold tracking-tight text-slateText-primary">Step 4: Institutional Excel Preview & Live In-Place Editing</h2>
+              <p class="text-sm text-slateText-muted mt-1">Double-click any cell to modify values before generating the final Excel file.</p>
+            </div>
+            <div class="flex gap-3">
+              <button class="pill-btn secondary" data-goto-step="3">Back</button>
+              <button class="pill-btn primary" id="btn-download-excel">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download Formatted Excel (.xlsx)
+              </button>
+            </div>
+          </div>
+
+          <!-- PREVIEW CONTAINER -->
+          <div class="p-6 rounded-2xl bg-navy-card border border-white/10 border-t-2 border-t-gold shadow-card space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold">Leg 1: Recipient (Original Side)</span>
+                <span class="px-2.5 py-1 rounded-full bg-white/5 text-slateText-muted font-bold">Divider: Blank Row</span>
+                <span class="px-2.5 py-1 rounded-full bg-red-500/15 text-red-400 border border-red-500/30 font-bold">Leg 2: Sender (Reversed Side)</span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-slateText-muted">Total Records: <strong id="preview-total-records" class="text-slateText-primary font-mono font-bold">0</strong></span>
+                <button id="btn-rebuild-preview" class="text-gold hover:underline font-bold">Rebuild Preview</button>
+              </div>
+            </div>
+
+            <!-- EXCEL PREVIEW TABLE (18 COLUMNS) -->
+            <div class="overflow-x-auto rounded-xl border border-gold-amber/20 max-h-[520px] shadow-inner">
+              <table class="w-full text-xs border-collapse font-mono" id="table-excel-preview">
+                <thead class="bg-navy-header sticky top-0 z-10 text-[11px] font-bold text-gold uppercase tracking-wider border-b border-white/10 text-center" id="excel-thead">
+                  <!-- Injected via JS -->
+                </thead>
+                <tbody id="excel-tbody" class="divide-y divide-white/5 text-center">
+                  <tr><td colspan="18" class="py-12 text-slateText-muted font-sans">Click 'Rebuild Preview' to generate view.</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- DESCRIPTIVE FILENAME & EXPORT BAR -->
+            <div class="p-4 rounded-xl bg-navy-input border border-white/10 flex flex-wrap items-center justify-between gap-4">
+              <div class="flex-grow max-w-xl">
+                <label class="block text-[11px] font-bold text-slateText-muted uppercase tracking-wider mb-1">Generated Output Filename:</label>
+                <input type="text" id="input-export-filename" class="w-full px-3.5 py-2 rounded-lg bg-navy-card border border-white/10 focus:border-gold outline-none text-xs font-mono font-bold text-gold transition" placeholder="SYM.Transfer.YYYYMMDD_FROM_TO_DEST.xlsx">
+                <p class="text-[10px] text-slateText-muted mt-1">Clear format: [ClientGroup].Transfer.[Date]_[Sender]_TO_[Recipient].xlsx</p>
+              </div>
+
+              <button class="pill-btn primary" id="btn-download-excel-bottom">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                Download Formatted Excel (.xlsx)
+              </button>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- MID-WORKFLOW FILE SWITCH CONFIRMATION MODAL -->
+  <div id="file-switch-confirm-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center hidden">
+    <div class="p-6 rounded-2xl bg-navy-card border border-gold-amber/40 shadow-2xl max-w-md w-full mx-4 space-y-4">
+      <div class="flex items-center gap-3 text-gold">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <h3 class="text-base font-bold text-slateText-primary">Switch Trade File?</h3>
+      </div>
+      <p class="text-xs text-slateText-secondary leading-relaxed">
+        Switching to a new trade file will validate its header schema and reset your currently configured transfer routes and lot allocations.
+      </p>
+      <div class="flex justify-end gap-3 pt-2">
+        <button id="btn-cancel-file-switch" class="px-4 py-2 rounded-xl bg-navy-input hover:bg-white/10 text-xs font-bold text-slateText-secondary transition">Cancel</button>
+        <button id="btn-confirm-file-switch" class="px-4 py-2 rounded-xl bg-gold hover:bg-gold-amber text-obsidian text-xs font-bold shadow-gold transition">Proceed & Switch</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

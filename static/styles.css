@@ -1,0 +1,360 @@
+/* Axxela Quant Styling & Tailwind Overrides */
+
+:root, [data-theme="dark"], html.dark {
+  --canvas-bg: #0b0f17;
+  --sidebar-bg: #0f1622;
+  --card-bg: #161f2d;
+  --card-hover: #1c2738;
+  --input-bg: #0e141f;
+  --header-bg: #141c29;
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-card: rgba(255, 255, 255, 0.08);
+  --border-divider: rgba(255, 255, 255, 0.04);
+  --text-main: #e9eaec;
+  --text-sub: #c5cbd5;
+  --text-muted: #7e8b9f;
+  --accent-gold: #fbe134;
+  --accent-amber: #e4b61a;
+  --accent-dark: #c59318;
+  --accent-glow: rgba(251, 225, 52, 0.15);
+  --shadow-gold: 0 4px 16px rgba(251, 225, 52, 0.2);
+  --shadow-card: 0 4px 20px -2px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="light"], html.light {
+  --canvas-bg: #f4f6fa;
+  --sidebar-bg: #ebedf2;
+  --card-bg: #ffffff;
+  --card-hover: #f9fafb;
+  --input-bg: #ffffff;
+  --header-bg: #ffffff;
+  --border-subtle: #e4e7ec;
+  --border-card: #e4e7ec;
+  --border-divider: #e4e7ec;
+  --text-main: #0d131d;
+  --text-sub: #344054;
+  --text-muted: #667085;
+  --accent-gold: #d49b0e;
+  --accent-amber: #b8860b;
+  --accent-dark: #986f08;
+  --accent-glow: rgba(212, 155, 14, 0.18);
+  --shadow-gold: 0 4px 16px rgba(212, 155, 14, 0.15);
+  --shadow-card: 0 4px 16px -2px rgba(16, 24, 40, 0.08);
+}
+
+/* Light mode structural styling */
+[data-theme="light"] body {
+  background-color: var(--canvas-bg) !important;
+  color: var(--text-main) !important;
+}
+
+[data-theme="light"] aside {
+  background-color: var(--sidebar-bg) !important;
+  border-color: var(--border-card) !important;
+}
+
+[data-theme="light"] header {
+  background-color: var(--header-bg) !important;
+  border-color: var(--border-card) !important;
+}
+
+[data-theme="light"] .border-white\/5,
+[data-theme="light"] .border-white\/10 {
+  border-color: var(--border-card) !important;
+}
+
+[data-theme="light"] .divide-white\/5 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border-divider) !important;
+}
+
+[data-theme="light"] .bg-white\/5,
+[data-theme="light"] .bg-white\/10 {
+  background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] input,
+[data-theme="light"] select,
+[data-theme="light"] textarea {
+  border-color: var(--border-card) !important;
+  color: var(--text-main) !important;
+  background-color: var(--input-bg) !important;
+}
+
+[data-theme="light"] input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="light"] #table-excel-preview thead {
+  background-color: #f0f2f7 !important;
+  color: var(--accent-gold) !important;
+}
+
+[data-theme="light"] #table-excel-preview td {
+  border-color: #e4e7ec !important;
+  color: #0d131d !important;
+}
+
+[data-theme="light"] #table-excel-preview tr.separator-row td {
+  background-color: #e4e7ec !important;
+}
+
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  padding: 2px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: transparent;
+  border: none;
+}
+
+.theme-toggle-btn.active {
+  background-color: var(--accent-gold) !important;
+  color: #0b0c0c !important;
+  font-weight: 700;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+/* SIDEBAR COLLAPSED STATE */
+aside.collapsed {
+  width: 68px !important;
+}
+
+aside.collapsed .sidebar-text {
+  display: none !important;
+}
+
+aside.collapsed #collapse-icon {
+  transform: rotate(180deg);
+}
+
+aside.collapsed .nav-item {
+  justify-content: center !important;
+  padding: 12px 0 !important;
+}
+
+aside.collapsed .sidebar-footer {
+  padding: 12px 6px !important;
+}
+
+/* BUTTONS */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: 9999px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.pill-btn.primary {
+  background: linear-gradient(135deg, #fbe134, #e4b61a);
+  color: #0b0c0c;
+  box-shadow: 0 4px 16px rgba(251, 225, 52, 0.25);
+}
+
+.pill-btn.primary:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.pill-btn.secondary {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-card);
+  color: var(--text-main);
+}
+
+.pill-btn.secondary:hover {
+  background-color: var(--card-hover);
+  color: var(--accent-gold);
+  border-color: var(--accent-amber);
+}
+
+/* STEPPER NAV ITEM */
+.nav-item.active {
+  background: #1c2738 !important;
+  border-color: rgba(251, 225, 52, 0.45) !important;
+  color: #fbe134 !important;
+  opacity: 1 !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+}
+
+.nav-item.active .step-num {
+  background-color: #fbe134 !important;
+  color: #0b0c0c !important;
+  box-shadow: 0 0 10px rgba(251, 225, 52, 0.4);
+}
+
+[data-theme="light"] .nav-item.active,
+html.light .nav-item.active {
+  background: #ffffff !important;
+  border: 1.5px solid var(--accent-gold) !important;
+  color: #0d131d !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .nav-item.active .step-num,
+html.light .nav-item.active .step-num {
+  background-color: var(--accent-gold) !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 4px rgba(212, 155, 14, 0.3) !important;
+}
+
+[data-theme="light"] .nav-item:not(.active):hover,
+html.light .nav-item:not(.active):hover {
+  background-color: rgba(0, 0, 0, 0.04);
+}
+
+.nav-item.completed .step-num {
+  background-color: #e4b61a !important;
+  color: #0b0c0c !important;
+}
+
+.nav-item.completed {
+  opacity: 0.9 !important;
+}
+
+/* CHIP BUTTONS */
+.chip-btn {
+  padding: 6px 14px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 600;
+  background-color: var(--input-bg);
+  border: 1px solid var(--border-card);
+  color: var(--text-sub);
+  transition: all 0.15s ease;
+}
+
+.chip-btn.active {
+  background-color: var(--accent-gold);
+  color: #0b0c0c;
+  border-color: var(--accent-gold);
+  font-weight: 700;
+}
+
+/* CONTRACT CARD */
+.contract-card {
+  background-color: var(--card-bg);
+  border: 1px solid var(--border-card);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.contract-card:hover {
+  border-color: var(--accent-amber);
+  transform: translateY(-1px);
+}
+
+.contract-card.selected {
+  border-color: var(--accent-gold);
+  background: var(--card-hover);
+  box-shadow: 0 0 0 1px var(--accent-gold);
+}
+
+[data-theme="light"] .contract-card.selected,
+html.light .contract-card.selected {
+  background: #fdfaf0 !important;
+  border-color: var(--accent-gold) !important;
+}
+
+/* PRICING CARD */
+.pricing-card.active {
+  border-color: var(--accent-gold) !important;
+  background: var(--card-hover) !important;
+  box-shadow: 0 0 0 1px var(--accent-gold);
+}
+
+[data-theme="light"] .pricing-card.active,
+html.light .pricing-card.active {
+  background: #fdfaf0 !important;
+  border-color: var(--accent-gold) !important;
+}
+
+/* EXCEL PREVIEW TABLE */
+#table-excel-preview th {
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  white-space: nowrap;
+}
+
+#table-excel-preview td {
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  white-space: nowrap;
+  font-weight: 600;
+  cursor: text;
+  transition: background 0.12s ease;
+}
+
+#table-excel-preview tr:hover td {
+  background-color: rgba(251, 225, 52, 0.035);
+}
+
+#table-excel-preview tr.separator-row td {
+  background-color: rgba(0, 0, 0, 0.4) !important;
+  height: 18px !important;
+  border-left: none !important;
+  border-right: none !important;
+  cursor: default !important;
+}
+
+#table-excel-preview td.editing {
+  padding: 0 !important;
+}
+
+#table-excel-preview td input.cell-editor {
+  width: 100%;
+  height: 100%;
+  padding: 7px 10px;
+  background-color: var(--input-bg);
+  border: 2px solid var(--accent-gold);
+  color: var(--accent-gold);
+  font-family: inherit;
+  font-size: inherit;
+  text-align: center;
+  outline: none;
+}
+
+/* SESSION TOAST ADAPTIVE STYLING */
+#session-toast {
+  background-color: var(--card-bg) !important;
+  border-bottom: 1px solid var(--border-card) !important;
+  color: var(--text-main) !important;
+}
+
+[data-theme="light"] #session-toast,
+html.light #session-toast {
+  background-color: #ffffff !important;
+  border-bottom-color: #e4e7ec !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(251, 225, 52, 0.25);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(251, 225, 52, 0.5);
+}
