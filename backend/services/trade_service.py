@@ -56,13 +56,24 @@ class TradeService:
 
     def scan_workspace_csvs(self) -> List[Dict[str, Any]]:
         csv_files = []
+        seen_paths = set()
+        workspace_dir = os.path.dirname(BASE_DIR)
+        
         patterns = [
+            os.path.join(workspace_dir, "*.csv"),
+            os.path.join(workspace_dir, "uploads", "*.csv"),
             os.path.join(BASE_DIR, "*.csv"),
-            os.path.join(BASE_DIR, "*", "*.csv")
+            os.path.join(BASE_DIR, "uploads", "*.csv"),
         ]
+        
         for p in patterns:
             for f in glob.glob(p):
-                rel = os.path.relpath(f, BASE_DIR)
+                norm_p = os.path.normcase(os.path.abspath(f))
+                if norm_p in seen_paths:
+                    continue
+                seen_paths.add(norm_p)
+                
+                rel = os.path.relpath(f, workspace_dir)
                 try:
                     sz_mb = round(os.path.getsize(f) / (1024 * 1024), 2)
                     mtime = os.path.getmtime(f)
@@ -79,28 +90,48 @@ class TradeService:
         csv_files.sort(key=lambda x: x["mtime"], reverse=True)
         return csv_files
 
+    def delete_file(self, filepath: str) -> bool:
+        if not filepath:
+            raise ValueError("File path cannot be empty.")
+            
+        abs_path = os.path.abspath(filepath)
+        if not os.path.exists(abs_path):
+            raise FileNotFoundError(f"File not found: {filepath}")
+            
+        # Prevent deleting outside workspace root or system files
+        workspace_dir = os.path.dirname(BASE_DIR)
+        common_prefix = os.path.commonpath([abs_path, workspace_dir])
+        if os.path.abspath(common_prefix) != os.path.abspath(workspace_dir):
+            raise PermissionError("Cannot delete files outside workspace directory.")
+            
+        # If currently loaded, reset in-memory state
+        if self.file_path and os.path.abspath(self.file_path) == abs_path:
+            self.reset()
+            
+        os.remove(abs_path)
+        return True
+
     def load_file(self, filepath: str) -> Dict[str, Any]:
         """
         Safely loads a CSV file. If validation fails, raises ValueError and preserves current state.
         """
         new_df, new_meta = CsvTradeReader.read_and_validate(filepath)
 
-        # Build row_id map for rapid O(1) trade lookup
-        new_map = {str(r["__row_id__"]): {k: sanitize_json_val(v) for k, v in r.to_dict().items()} for _, r in new_df.iterrows()}
-
         self.df = new_df
         self.metadata = new_meta
         self.file_path = filepath
-        self.row_id_map = new_map
+        self.row_id_map = {}
 
         return sanitize_for_json({
             "success": True,
             "filename": new_meta["filename"],
             "total_rows": new_meta["total_rows"],
+            "total_records": new_meta["total_rows"],
             "total_accounts": len(new_meta["accounts_summary"]),
             "client_group": new_meta["client_group"],
             "default_date": new_meta["default_date"],
-            "products": new_meta["products"]
+            "products": new_meta["products"],
+            "accounts": new_meta["accounts_summary"]
         })
 
     def get_status(self) -> Dict[str, Any]:
@@ -122,10 +153,10 @@ class TradeService:
     def search_accounts(self, query: str = "") -> List[Dict[str, Any]]:
         accounts = self.metadata.get("accounts_summary", [])
         if not query:
-            return accounts[:100]
+            return accounts[:200]
         q = query.strip().upper()
-        matched = [a for a in accounts if q in a["account"].upper()]
-        return matched[:100]
+        matched = [a for a in accounts if q in str(a.get("account", "")).upper()]
+        return matched[:200]
 
     def filter_contracts(
         self,
@@ -332,9 +363,16 @@ class TradeService:
 
         price_strategy = get_price_strategy(mode=price_mode, global_manual_price=global_manual_price)
 
+        row_ids = [str(a.row_id) for a in allocations]
+        target_df = self.df[self.df["__row_id__"].isin(row_ids)]
+        active_row_map = {
+            str(r["__row_id__"]): {k: sanitize_json_val(v) for k, v in r.items()}
+            for _, r in target_df.iterrows()
+        }
+
         all_rows, separator_indices, summary = TradeTransferAllocator.allocate(
             allocations=allocations,
-            row_id_map=self.row_id_map,
+            row_id_map=active_row_map,
             price_strategy=price_strategy,
             custom_date=custom_date
         )
