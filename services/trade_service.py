@@ -46,6 +46,9 @@ class TradeService:
     """
 
     def __init__(self):
+        self.reset()
+
+    def reset(self):
         self.file_path: Optional[str] = None
         self.df: Optional[pd.DataFrame] = None
         self.metadata: Dict[str, Any] = {}

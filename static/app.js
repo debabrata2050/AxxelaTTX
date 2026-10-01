@@ -98,13 +98,190 @@ function bindSidebarCollapse() {
 }
 
 // ==========================================================================
-// LOADING SPINNER OVERLAY
+// LOADING SPINNER OVERLAY & MULTI-STAGE PROGRESS MODAL
 // ==========================================================================
 function showLoading(text = 'Processing trade data...', subtext = 'Please hold on') {
   const overlay = document.getElementById('loading-overlay');
+  const simpleSpinner = document.getElementById('loading-simple-spinner');
+  const stageCard = document.getElementById('loading-stage-card');
+
+  if (simpleSpinner) simpleSpinner.classList.remove('hidden');
+  if (stageCard) stageCard.classList.add('hidden');
+
   document.getElementById('loading-text').textContent = text;
   document.getElementById('loading-subtext').textContent = subtext;
   overlay.classList.remove('hidden');
+}
+
+function showStageModal(filename = '', title = 'Uploading & Validating CSV') {
+  const overlay = document.getElementById('loading-overlay');
+  const simpleSpinner = document.getElementById('loading-simple-spinner');
+  const stageCard = document.getElementById('loading-stage-card');
+
+  if (simpleSpinner) simpleSpinner.classList.add('hidden');
+  if (stageCard) stageCard.classList.remove('hidden');
+
+  document.getElementById('stage-title').textContent = title;
+  document.getElementById('stage-file-name').textContent = filename;
+  document.getElementById('stage-percentage').textContent = '0%';
+  document.getElementById('stage-progress-bar').style.width = '0%';
+  document.getElementById('stage-detail-text').textContent = 'Preparing transfer...';
+  document.getElementById('stage-byte-stats').textContent = '';
+
+  updateStepStatus('upload', 'waiting');
+  updateStepStatus('validate', 'pending');
+  updateStepStatus('parse', 'pending');
+
+  overlay.classList.remove('hidden');
+}
+
+function updateStepStatus(stepKey, status, badgeText = null) {
+  // stepKey: 'upload' | 'validate' | 'parse'
+  // status: 'pending' | 'waiting' | 'active' | 'done' | 'error'
+  const row = document.getElementById(`step-row-${stepKey}`);
+  if (!row) return;
+
+  const indicator = row.querySelector('.step-indicator');
+  const statusEl = row.querySelector('.step-status');
+
+  row.classList.remove('opacity-60', 'opacity-100');
+  indicator.className = 'step-indicator w-6 h-6 rounded-full flex items-center justify-center font-mono text-[10px] transition-all duration-200';
+  statusEl.className = 'step-status text-[10px] font-mono';
+
+  const defaultStepNum = stepKey === 'upload' ? '1' : stepKey === 'validate' ? '2' : '3';
+
+  if (status === 'pending' || status === 'waiting') {
+    row.classList.add('opacity-60');
+    indicator.classList.add('border', 'border-white/20', 'bg-white/5', 'text-slateText-muted');
+    statusEl.classList.add('text-slateText-muted');
+    statusEl.textContent = badgeText || (status === 'waiting' ? 'Waiting' : 'Pending');
+    indicator.textContent = defaultStepNum;
+  } else if (status === 'active') {
+    row.classList.add('opacity-100');
+    indicator.classList.add('border', 'border-gold', 'bg-gold/20', 'text-gold', 'font-bold', 'ring-2', 'ring-gold/30', 'animate-pulse');
+    statusEl.classList.add('text-gold', 'font-semibold');
+    statusEl.textContent = badgeText || 'In Progress...';
+    indicator.textContent = defaultStepNum;
+  } else if (status === 'done') {
+    row.classList.add('opacity-100');
+    indicator.classList.add('border', 'border-emerald-500', 'bg-emerald-500/20', 'text-emerald-400', 'font-bold');
+    indicator.innerHTML = '&#10003;';
+    statusEl.classList.add('text-emerald-400', 'font-semibold');
+    statusEl.textContent = badgeText || 'Complete';
+  } else if (status === 'error') {
+    row.classList.add('opacity-100');
+    indicator.classList.add('border', 'border-red-500', 'bg-red-500/20', 'text-red-400', 'font-bold');
+    indicator.textContent = '!';
+    statusEl.classList.add('text-red-400', 'font-semibold');
+    statusEl.textContent = badgeText || 'Failed';
+  }
+}
+
+function updateProgress(pct, detail = '', bytes = '') {
+  const bar = document.getElementById('stage-progress-bar');
+  const pctEl = document.getElementById('stage-percentage');
+  const detailEl = document.getElementById('stage-detail-text');
+  const bytesEl = document.getElementById('stage-byte-stats');
+
+  const boundedPct = Math.min(100, Math.max(0, pct));
+  if (bar) bar.style.width = `${boundedPct}%`;
+  if (pctEl) pctEl.textContent = `${Math.round(boundedPct)}%`;
+  if (detail && detailEl) detailEl.textContent = detail;
+  if (bytes && bytesEl) bytesEl.textContent = bytes;
+}
+
+function formatBytes(bytes, decimals = 1) {
+  if (!bytes || bytes === 0) return '0 B';
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['B', 'KB', 'MB', 'GB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
+
+function readFileHeaderSnippet(file) {
+  return new Promise((resolve, reject) => {
+    const slice = file.slice(0, 4096);
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result || '');
+    reader.onerror = (e) => reject(e);
+    reader.readAsText(slice);
+  });
+}
+
+function validateCsvHeaderSnippet(snippet) {
+  if (!snippet) return [];
+  const firstLine = snippet.split(/[\r\n]+/)[0];
+  if (!firstLine) return [];
+  const headers = firstLine.split(',').map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ''));
+  const mandatory = ['contractcode', 'transactiontype', 'qtybalance'];
+  const missing = [];
+  for (const m of mandatory) {
+    if (!headers.includes(m)) missing.push(m);
+  }
+  const hasAccount = headers.some(h => h === 'clientaccountnumber' || h === 'clientnumber');
+  if (!hasAccount) missing.push('clientaccountnumber or clientnumber');
+  return missing;
+}
+
+function uploadWithXhr(file) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Track upload progress (Stage 1 is 0% to 70% of total visual flow)
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable && e.total > 0) {
+        const uploadPct = Math.round((e.loaded / e.total) * 100);
+        const overallPct = Math.round(uploadPct * 0.7);
+        updateProgress(
+          overallPct,
+          `Uploading file payload (${uploadPct}%)...`,
+          `${formatBytes(e.loaded)} / ${formatBytes(e.total)}`
+        );
+      }
+    });
+
+    xhr.upload.addEventListener('load', () => {
+      updateStepStatus('upload', 'done', 'Uploaded');
+      updateStepStatus('validate', 'active', 'Checking schema...');
+      updateProgress(80, 'Validating CSV headers on backend...', formatBytes(file.size));
+
+      setTimeout(() => {
+        if (xhr.readyState < 4) {
+          updateStepStatus('validate', 'done', 'Headers Valid');
+          updateStepStatus('parse', 'active', 'Indexing trades & accounts...');
+          updateProgress(92, 'Building DataFrame & account routes...', formatBytes(file.size));
+        }
+      }, 350);
+    });
+
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const res = JSON.parse(xhr.responseText);
+          updateStepStatus('validate', 'done', 'Headers Valid');
+          resolve(res);
+        } catch (e) {
+          reject(new Error('Invalid JSON response from server'));
+        }
+      } else {
+        try {
+          const errRes = JSON.parse(xhr.responseText);
+          reject(new Error(errRes.error || `HTTP ${xhr.status} Error`));
+        } catch (e) {
+          reject(new Error(`Server error (${xhr.status}): ${xhr.statusText}`));
+        }
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('Network connection failed during upload.'));
+    xhr.ontimeout = () => reject(new Error('Upload timed out. File processing took too long.'));
+
+    xhr.open('POST', '/api/upload-file');
+    xhr.send(formData);
+  });
 }
 
 function hideLoading() {
@@ -166,14 +343,52 @@ function persistSession() {
 }
 
 function clearSession() {
+  clearTimeout(saveDebounceTimer);
   localStorage.removeItem(SESSION_KEY);
+  try {
+    sessionStorage.removeItem(SESSION_KEY);
+  } catch (e) {}
+
+  // Full reset of active file and routes
+  STATE.activeFilePath = null;
+  STATE.activeFilename = null;
+  STATE.clientGroup = 'SYM';
+  STATE.defaultDate = null;
   STATE.routes = [];
   STATE.selectedContracts.clear();
   STATE.allocations = {};
   STATE.previewRows = [];
   STATE.currentStep = 0;
-  document.getElementById('session-toast').classList.add('hidden');
+
+  document.getElementById('sb-file-name').textContent = 'No file loaded';
+  document.getElementById('sb-row-count').textContent = '0 trades';
+  document.getElementById('nav-file-label').textContent = 'No file selected';
+  document.getElementById('topbar-filename').textContent = 'Awaiting CSV';
+  document.getElementById('topbar-acc-count').textContent = '0';
+  document.getElementById('topbar-trade-count').textContent = '0';
+
+  renderRoutesList();
   updateBasketUI();
+  loadWorkspaceFileList();
+
+  // Reset server memory state
+  fetch('/api/unload-file', { method: 'POST' }).catch(() => {});
+
+  const inputSender = document.getElementById('input-sender-account');
+  const inputRecipient = document.getElementById('input-recipient-account');
+  if (inputSender) inputSender.value = '';
+  if (inputRecipient) inputRecipient.value = '';
+  document.getElementById('btn-clear-sender-search')?.classList.add('hidden');
+  document.getElementById('btn-clear-recipient-input')?.classList.add('hidden');
+
+  const contractSearch = document.getElementById('search-contracts-input');
+  if (contractSearch) contractSearch.value = '';
+  document.getElementById('btn-clear-contracts-search')?.classList.add('hidden');
+  STATE.contractSearchQuery = '';
+
+  const toast = document.getElementById('session-toast');
+  if (toast) toast.classList.add('hidden');
+
   goToStep(0);
 }
 
@@ -277,7 +492,9 @@ function goToStep(step) {
   });
 
   // Step trigger actions
-  if (step === 2) {
+  if (step === 1) {
+    renderRoutesList();
+  } else if (step === 2) {
     loadContracts();
   } else if (step === 3) {
     loadTradesForAllocation();
@@ -333,26 +550,59 @@ async function handleFileUpload(file) {
     return;
   }
 
-  showLoading('Uploading and validating headers...', file.name);
-  const formData = new FormData();
-  formData.append('file', file);
+  showStageModal(file.name, 'Uploading & Validating CSV');
+  updateStepStatus('upload', 'active', 'Uploading...');
+  updateProgress(0, 'Reading file stream...', `0 B / ${formatBytes(file.size)}`);
+
+  // Instant client-side header validation pre-check
+  try {
+    const snippet = await readFileHeaderSnippet(file);
+    const missing = validateCsvHeaderSnippet(snippet);
+    if (missing.length > 0) {
+      updateStepStatus('upload', 'error', 'Aborted');
+      updateStepStatus('validate', 'error', 'Invalid Header');
+      updateProgress(0, 'Header validation failed locally', '0 B transferred');
+      await new Promise(r => setTimeout(r, 400));
+      hideLoading();
+      showAlert('Header Validation Failed', `Missing mandatory header(s): [${missing.join(', ')}]. File does not match required trade export format.`);
+      return;
+    }
+  } catch (err) {
+    console.warn('Local pre-check skipped:', err);
+  }
 
   try {
-    const res = await fetch('/api/upload-file', {
-      method: 'POST',
-      body: formData
-    });
-    const data = await res.json();
-    hideLoading();
+    const data = await uploadWithXhr(file);
 
     if (!data.success) {
+      updateStepStatus('validate', 'error', 'Validation Failed');
+      updateProgress(80, data.error || 'Validation error');
+      await new Promise(r => setTimeout(r, 400));
+      hideLoading();
       showAlert('Header Validation Failed', data.error);
       return;
     }
 
+    // Success transition
+    updateStepStatus('parse', 'done', `${(data.total_rows || 0).toLocaleString()} trades ready`);
+    updateProgress(100, 'Processing complete! Transferring to allocation...', `${formatBytes(file.size)}`);
+    await new Promise(r => setTimeout(r, 450));
+    hideLoading();
+
+    // Fresh upload: reset routes, contracts, allocations and session storage
+    clearTimeout(saveDebounceTimer);
+    localStorage.removeItem(SESSION_KEY);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    STATE.routes = [];
+    STATE.selectedContracts.clear();
+    STATE.allocations = {};
+    STATE.previewRows = [];
+    renderRoutesList();
+
     applyLoadedFile(data);
     goToStep(1);
   } catch (err) {
+    updateStepStatus('upload', 'error', 'Failed');
     hideLoading();
     showAlert('Upload Error', err.message);
   }
@@ -396,21 +646,55 @@ async function loadWorkspaceFileList() {
 }
 
 async function selectWorkspaceFile(filePath) {
-  showLoading('Checking headers and loading trades...', filePath.split(/[/\\]/).pop());
+  const filename = filePath.split(/[/\\]/).pop();
+  showStageModal(filename, 'Loading Workspace CSV');
+
+  // Step 1 is local workspace file -> marked Complete
+  updateStepStatus('upload', 'done', 'Local File (Ready)');
+  updateStepStatus('validate', 'active', 'Validating schema...');
+  updateProgress(35, 'Peeking mandatory CSV headers...', 'Local disk');
 
   try {
-    const res = await fetch('/api/select-file', {
+    const fetchPromise = fetch('/api/select-file', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ file_path: filePath })
     });
+
+    const stepTimer = setTimeout(() => {
+      updateStepStatus('validate', 'done', 'Headers Valid');
+      updateStepStatus('parse', 'active', 'Parsing trades & accounts...');
+      updateProgress(75, 'Ingesting trades and building account map...', 'Local disk');
+    }, 280);
+
+    const res = await fetchPromise;
+    clearTimeout(stepTimer);
     const data = await res.json();
-    hideLoading();
 
     if (!data.success) {
+      updateStepStatus('validate', 'error', 'Invalid');
+      updateProgress(50, data.error || 'Validation error');
+      await new Promise(r => setTimeout(r, 400));
+      hideLoading();
       showAlert('Header Validation Failed', data.error);
       return;
     }
+
+    updateStepStatus('validate', 'done', 'Headers Valid');
+    updateStepStatus('parse', 'done', `${(data.total_rows || 0).toLocaleString()} trades ready`);
+    updateProgress(100, 'All records loaded successfully', `${(data.total_rows || 0).toLocaleString()} rows`);
+    await new Promise(r => setTimeout(r, 450));
+    hideLoading();
+
+    // Fresh workspace file load: reset routes, contracts, allocations and session storage
+    clearTimeout(saveDebounceTimer);
+    localStorage.removeItem(SESSION_KEY);
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
+    STATE.routes = [];
+    STATE.selectedContracts.clear();
+    STATE.allocations = {};
+    STATE.previewRows = [];
+    renderRoutesList();
 
     applyLoadedFile(data);
     goToStep(1);
@@ -526,19 +810,8 @@ async function checkInitialStatus() {
     }
   }
 
-  // If no session, check if default file is loaded on server
-  try {
-    const res = await fetch('/api/status');
-    const data = await res.json();
-    if (data.loaded) {
-      applyLoadedFile(data);
-      goToStep(1);
-    } else {
-      goToStep(0);
-    }
-  } catch (e) {
-    goToStep(0);
-  }
+  // If no session, start clean on Step 0 awaiting user file selection
+  goToStep(0);
 }
 
 // ==========================================================================
@@ -546,13 +819,28 @@ async function checkInitialStatus() {
 // ==========================================================================
 function bindStep1Accounts() {
   const inputSender = document.getElementById('input-sender-account');
+  const btnClearSender = document.getElementById('btn-clear-sender-search');
   const dropdown = document.getElementById('sender-dropdown');
   const inputRecipient = document.getElementById('input-recipient-account');
+  const btnClearRecipient = document.getElementById('btn-clear-recipient-input');
   const btnAdd = document.getElementById('btn-add-route');
   const btnNext = document.getElementById('btn-to-step-2');
 
+  function updateSenderClearBtn() {
+    if (btnClearSender) {
+      btnClearSender.classList.toggle('hidden', !inputSender.value);
+    }
+  }
+
+  function updateRecipientClearBtn() {
+    if (btnClearRecipient) {
+      btnClearRecipient.classList.toggle('hidden', !inputRecipient.value);
+    }
+  }
+
   let searchTimer = null;
   inputSender.addEventListener('input', () => {
+    updateSenderClearBtn();
     clearTimeout(searchTimer);
     searchTimer = setTimeout(async () => {
       const q = inputSender.value.trim();
@@ -561,6 +849,27 @@ function bindStep1Accounts() {
       renderSenderDropdown(data.accounts || []);
     }, 180);
   });
+
+  if (btnClearSender) {
+    btnClearSender.addEventListener('click', () => {
+      inputSender.value = '';
+      updateSenderClearBtn();
+      dropdown.classList.add('hidden');
+      inputSender.focus();
+    });
+  }
+
+  inputRecipient.addEventListener('input', () => {
+    updateRecipientClearBtn();
+  });
+
+  if (btnClearRecipient) {
+    btnClearRecipient.addEventListener('click', () => {
+      inputRecipient.value = '';
+      updateRecipientClearBtn();
+      inputRecipient.focus();
+    });
+  }
 
   inputSender.addEventListener('focus', async () => {
     if (dropdown.classList.contains('hidden')) {
@@ -571,7 +880,7 @@ function bindStep1Accounts() {
   });
 
   document.addEventListener('click', (e) => {
-    if (!e.target.closest('#input-sender-account') && !e.target.closest('#sender-dropdown')) {
+    if (!e.target.closest('#input-sender-account') && !e.target.closest('#sender-dropdown') && !e.target.closest('#btn-clear-sender-search')) {
       dropdown.classList.add('hidden');
     }
   });
@@ -592,6 +901,7 @@ function bindStep1Accounts() {
     dropdown.querySelectorAll('[data-acc]').forEach(el => {
       el.addEventListener('click', () => {
         inputSender.value = el.dataset.acc;
+        updateSenderClearBtn();
         dropdown.classList.add('hidden');
       });
     });
@@ -634,6 +944,8 @@ function bindStep1Accounts() {
 
     inputSender.value = '';
     inputRecipient.value = '';
+    updateSenderClearBtn();
+    updateRecipientClearBtn();
   });
 
   btnNext.addEventListener('click', () => {
@@ -688,14 +1000,33 @@ function bindStep2Contracts() {
   });
 
   const searchInput = document.getElementById('search-contracts-input');
+  const btnClearSearch = document.getElementById('btn-clear-contracts-search');
   let searchTimer = null;
+
+  function updateContractClearBtn() {
+    if (btnClearSearch) {
+      btnClearSearch.classList.toggle('hidden', !searchInput.value);
+    }
+  }
+
   searchInput.addEventListener('input', () => {
+    updateContractClearBtn();
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       STATE.contractSearchQuery = searchInput.value.trim();
       loadContracts();
     }, 200);
   });
+
+  if (btnClearSearch) {
+    btnClearSearch.addEventListener('click', () => {
+      searchInput.value = '';
+      updateContractClearBtn();
+      STATE.contractSearchQuery = '';
+      searchInput.focus();
+      loadContracts();
+    });
+  }
 
   document.getElementById('btn-select-all-contracts').addEventListener('click', () => {
     STATE.contracts.forEach(c => STATE.selectedContracts.add(c.contractcode));
@@ -760,14 +1091,28 @@ function renderContractsGrid() {
     const expText = c.contractexpiry || c.expirydate || 'N/A';
     const optExtra = c.sectyp === 'OPT' ? ` | ${c.cp || ''} ${c.strike || ''}` : '';
 
+    const fullName = (c.contractfullname || '').trim();
+    const desc = (c.contractdescription || '').trim();
+    const hasDifferentDesc = desc && desc.toLowerCase() !== fullName.toLowerCase();
+
     return `
       <div class="contract-card ${isSelected ? 'selected' : ''}" data-code="${c.contractcode}">
         <div class="flex justify-between items-start">
           <span class="font-mono text-base font-extrabold text-gold">${c.contractcode}</span>
           <span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 font-mono">${c.sectyp || 'FUT'}</span>
         </div>
-        <div class="text-xs font-semibold text-slateText-secondary line-clamp-2 mt-1">${c.contractfullname || c.contractdescription || c.contractcode}</div>
-        <div class="flex justify-between items-center text-[11px] pt-3 mt-2 border-t border-white/5 text-slateText-muted">
+        <div class="mt-1.5 space-y-1">
+          <div class="text-xs font-semibold text-slateText-primary truncate" title="${fullName || c.contractcode}">
+            ${fullName || c.contractcode}
+          </div>
+          ${hasDifferentDesc ? `
+            <div class="text-[11px] text-slateText-secondary truncate flex items-center gap-1.5" title="${desc}">
+              <span class="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-gold/15 text-gold uppercase tracking-wider flex-shrink-0">Desc</span>
+              <span class="truncate font-mono">${desc}</span>
+            </div>
+          ` : ''}
+        </div>
+        <div class="flex justify-between items-center text-[11px] pt-2.5 mt-2.5 border-t border-white/5 text-slateText-muted">
           <span>Exp: ${expText}${optExtra}</span>
           <span class="font-mono font-bold text-slateText-primary">${c.available_lots} Lots (${c.trade_count} trds)</span>
         </div>
@@ -948,7 +1293,10 @@ function renderTradesAllocationTable() {
       ? '<span class="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-bold border border-emerald-500/20">B</span>'
       : '<span class="px-2 py-0.5 rounded bg-red-500/15 text-red-400 font-bold border border-red-500/20">S</span>';
 
-    const descText = t.contractfullname || t.contractdescription || t.contractcode;
+    const fullName = (t.contractfullname || '').trim();
+    const desc = (t.contractdescription || '').trim();
+    const hasDifferentDesc = desc && desc.toLowerCase() !== fullName.toLowerCase();
+    const fullTooltip = [t.contractcode, fullName, hasDifferentDesc ? desc : ''].filter(Boolean).join(' - ');
 
     return `
       <tr class="hover:bg-gold/5 transition ${alloc.selected ? 'bg-gold/[0.02]' : 'opacity-60'}" data-row="${t.row_id}">
@@ -957,7 +1305,11 @@ function renderTradesAllocationTable() {
         </td>
         <td class="p-3 font-bold text-slateText-primary">${t.account}</td>
         <td class="p-3 text-[10px]"><span class="px-1.5 py-0.5 rounded bg-white/10 font-bold">${t.sectyp || 'FUT'}</span></td>
-        <td class="p-3 text-xs" title="${descText}">${t.contractcode} <span class="text-slateText-muted text-[10px]">(${descText})</span></td>
+        <td class="p-3 text-xs max-w-[280px]" title="${fullTooltip}">
+          <div class="font-mono font-bold text-gold">${t.contractcode}</div>
+          ${fullName ? `<div class="text-[11px] font-semibold text-slateText-primary truncate">${fullName}</div>` : ''}
+          ${hasDifferentDesc ? `<div class="text-[10px] text-slateText-muted truncate font-mono mt-0.5"><span class="text-gold/70 font-sans font-bold text-[9px] uppercase">Desc:</span> ${desc}</div>` : ''}
+        </td>
         <td class="p-3">${sideBadge}</td>
         <td class="p-3 font-bold text-slateText-primary">${t.qtybalance}</td>
         <td class="p-3">

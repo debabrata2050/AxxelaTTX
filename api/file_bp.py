@@ -12,6 +12,12 @@ def get_status():
     return jsonify(trade_service.get_status())
 
 
+@file_bp.route("/api/unload-file", methods=["POST"])
+def unload_file():
+    trade_service.reset()
+    return jsonify({"success": True})
+
+
 @file_bp.route("/api/files", methods=["GET"])
 def list_files():
     files = trade_service.scan_workspace_csvs()

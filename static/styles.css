@@ -358,3 +358,18 @@ html.light #session-toast {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(251, 225, 52, 0.5);
 }
+
+/* STAGE PROGRESS BAR & MODAL */
+#stage-progress-bar {
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+[data-theme="light"] #loading-stage-card {
+  background-color: #ffffff !important;
+  border-color: #e4e7ec !important;
+  box-shadow: 0 20px 45px -10px rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] #loading-overlay {
+  background-color: rgba(15, 23, 42, 0.5) !important;
+}
