@@ -27,6 +27,27 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
 
 ---
 
+## 🖥️ Platform UI Showcase
+
+<div align="center">
+
+### 1. Ingestion & Workspace Trade File Selection (Step 0)
+<img src="ui_step0_file_selection.png" alt="Axxela TTX - File Selection & CSV Ingestion" width="100%" />
+
+<br/><br/>
+
+### 2. Multi-Account Transfer Route Configuration (Step 1)
+<img src="ui_step1_route_configuration.png" alt="Axxela TTX - Transfer Routes Mapping" width="100%" />
+
+<br/><br/>
+
+### 3. Derivative Contract Slicing & Instrument Selection (Step 2)
+<img src="ui_step2_contract_filtering.png" alt="Axxela TTX - Contract Filtering & Selection" width="100%" />
+
+</div>
+
+---
+
 ## ⚡ 5-Step Trade Transfer Wizard Workflow
 
 ### Step 0: File Source & Schema Validation
@@ -230,6 +251,10 @@ Axxela TTX features built-in developer console telemetry. Open your browser DevT
 │   └── start_frontend.bat    # Dedicated frontend launcher
 ├── data/                     # Sample trade files & allocations
 ├── logo.svg                  # Brand vector asset
+├── architecture.png          # System architecture diagram
+├── ui_step0_file_selection.png       # Step 0 UI screenshot
+├── ui_step1_route_configuration.png  # Step 1 UI screenshot
+├── ui_step2_contract_filtering.png   # Step 2 UI screenshot
 ├── start_app.bat             # Root one-click platform launcher
 ├── stop_app.bat              # Root process termination script
 └── README.md                 # Project documentation
