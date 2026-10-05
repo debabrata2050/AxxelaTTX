@@ -154,12 +154,25 @@ npm --version      # Required: npm 9+
 
 ---
 
-### Step 3: Launch Option A — One-Click (Windows)
+### Step 3: Install Frontend NPM Packages
+Navigate to the `frontend` directory and install the required Node packages:
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+---
+
+### Step 4: Launch Option A — One-Click (Windows)
 If you are on Windows, start all services with a single script:
 ```cmd
 start_app.bat
 ```
 *Spawns the Flask API backend (`:5000`), compiles the Next.js frontend (`:3000`), opens `http://localhost:3000` in your default browser, and exits immediately.*
+
+> [!NOTE]
+> Ensure frontend npm packages (`cd frontend && npm install`) and backend requirements (`cd backend && pip install -r requirements.txt`) are installed before running `start_app.bat`.
 
 To terminate both servers cleanly:
 ```cmd
@@ -168,7 +181,7 @@ stop_app.bat
 
 ---
 
-### Step 4: Launch Option B — Manual CLI (Cross-Platform)
+### Step 5: Launch Option B — Manual CLI (Cross-Platform)
 
 #### Terminal 1: Backend Setup & Launch
 1. Open terminal and enter the `backend` folder:
@@ -200,7 +213,7 @@ stop_app.bat
    ```bash
    cd frontend
    ```
-2. Install npm dependencies:
+2. Install npm dependencies (if not already installed in Step 3):
    ```bash
    npm install
    ```
@@ -212,7 +225,7 @@ stop_app.bat
 
 ---
 
-### Step 5: Access the Web Portal
+### Step 6: Access the Web Portal
 1. Open your browser and navigate to:
    ```
    http://localhost:3000
