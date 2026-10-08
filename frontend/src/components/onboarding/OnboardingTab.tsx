@@ -560,6 +560,10 @@ export function OnboardingTab() {
     addRow(input, derived);
   };
 
+  const handleBatchAdd = (items: Array<{ input: OnboardingUserInput; derived: OnboardingDerived }>) => {
+    items.forEach((item) => addRow(item.input, item.derived));
+  };
+
   return (
     <div className="space-y-6">
       {/* ── Toolbar ── */}
@@ -624,7 +628,7 @@ export function OnboardingTab() {
       )}
 
       {/* ── Form ── */}
-      <OnboardingForm onAdd={handleAdd} />
+      <OnboardingForm onAdd={handleAdd} onBatchAdd={handleBatchAdd} />
 
       {/* ── Table with Edit and Delete ── */}
       <OnboardingTable

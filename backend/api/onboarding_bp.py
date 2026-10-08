@@ -28,6 +28,7 @@ from core.onboarding_db import (
     list_broker_rules,      upsert_broker_rule,      delete_broker_rule,
     list_subgroup_suffixes, upsert_subgroup_suffix,  delete_subgroup_suffix,
 )
+from core.sheet_service import get_sheet_service
 
 onboarding_bp = Blueprint("onboarding_bp", __name__)
 
@@ -168,3 +169,126 @@ def post_subgroup_rule():
 def del_subgroup_rule(rule_id: int):
     ok = delete_subgroup_suffix(rule_id)
     return jsonify({"success": ok})
+
+
+# ---------------------------------------------------------------------------
+# Google Sheet Integration
+# ---------------------------------------------------------------------------
+
+@onboarding_bp.route("/api/onboarding/sheet/status", methods=["GET"])
+def get_sheet_status():
+    """Returns Google Sheet configuration, connection health, and row count."""
+    try:
+        svc = get_sheet_service()
+        return jsonify(svc.get_sync_status())
+    except Exception as e:
+        return jsonify({"configured": False, "connected": False, "error": str(e)}), 200
+
+
+@onboarding_bp.route("/api/onboarding/sheet/config", methods=["POST"])
+def configure_sheet():
+    """Validates and persists Google Sheet URL/GID in SQLite."""
+    data = request.json or {}
+    url = (data.get("sheet_url") or "").strip()
+    gid = str(data.get("worksheet_gid") or "").strip()
+
+    if not url:
+        return jsonify({"success": False, "error": "Sheet URL is required"}), 400
+
+    try:
+        svc = get_sheet_service()
+        res = svc.test_and_save_sheet(url, gid)
+        return jsonify(res)
+    except PermissionError as e:
+        return jsonify({"success": False, "error": str(e)}), 403
+    except FileNotFoundError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@onboarding_bp.route("/api/onboarding/sheet/config", methods=["DELETE"])
+@onboarding_bp.route("/api/onboarding/sheet/disconnect", methods=["POST"])
+def disconnect_sheet():
+    """Removes stored Google Sheet configuration and flushes database/memory cache."""
+    try:
+        svc = get_sheet_service()
+        res = svc.disconnect_sheet()
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@onboarding_bp.route("/api/onboarding/sheet/refresh", methods=["POST"])
+def refresh_sheet():
+    """Forces cache reload from current Google Sheet."""
+    try:
+        svc = get_sheet_service()
+        svc.load_cache(force=True)
+        return jsonify({"success": True, "status": svc.get_sync_status()})
+    except PermissionError as e:
+        return jsonify({"success": False, "error": str(e)}), 403
+    except FileNotFoundError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@onboarding_bp.route("/api/onboarding/sheet/accounts", methods=["GET"])
+def get_sheet_accounts():
+    """Returns brief list of accounts for autocomplete/search with query support."""
+    q = request.args.get("q", "")
+    limit = request.args.get("limit", 50)
+    try:
+        limit_val = int(limit)
+    except (ValueError, TypeError):
+        limit_val = 50
+
+    try:
+        svc = get_sheet_service()
+        accounts = svc.list_accounts(query=q, limit=limit_val)
+        return jsonify({"success": True, "accounts": accounts})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@onboarding_bp.route("/api/onboarding/sheet/fetch", methods=["GET"])
+def fetch_sheet_account():
+    """Looks up single account details and derived values."""
+    account = (request.args.get("account") or "").strip()
+    person = request.args.get("person")  # optional 'p1' | 'p2'
+
+    if not account:
+        return jsonify({"success": False, "error": "Account query param is required"}), 400
+
+    try:
+        svc = get_sheet_service()
+        rec = svc.lookup_account(account, chosen_person=person)
+        if not rec:
+            return jsonify({"success": False, "error": f"Account '{account}' not found in Google Sheet"}), 404
+        return jsonify({"success": True, "record": rec})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@onboarding_bp.route("/api/onboarding/sheet/batch", methods=["POST"])
+def batch_fetch_sheet():
+    """Looks up multiple accounts in batch with joint account choices."""
+    data = request.json or {}
+    accounts = data.get("accounts", [])
+    joint_choices = data.get("joint_choices", {})
+
+    if not accounts:
+        return jsonify({"success": False, "error": "accounts list is required"}), 400
+
+    try:
+        svc = get_sheet_service()
+        res = svc.batch_lookup_accounts(accounts, joint_choices=joint_choices)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+

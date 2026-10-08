@@ -14,8 +14,9 @@ the data is persisted in  backend/onboarding.db .
 """
 
 import os
+import json
 import sqlite3
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 # ---------------------------------------------------------------------------
 # DB path
@@ -59,6 +60,28 @@ CREATE TABLE IF NOT EXISTS clientsubgroup_suffixes (
     clientgroup TEXT NOT NULL UNIQUE,
     suffix      TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sheet_config (
+    id            INTEGER PRIMARY KEY,
+    sheet_url     TEXT NOT NULL,
+    sheet_id      TEXT NOT NULL,
+    worksheet_gid TEXT DEFAULT '',
+    sheet_title   TEXT DEFAULT '',
+    last_synced   TEXT DEFAULT ''
+);
+
+CREATE TABLE IF NOT EXISTS sheet_accounts_cache (
+    account          TEXT PRIMARY KEY,
+    raw_name         TEXT,
+    location         TEXT,
+    sub_branch       TEXT,
+    subgroup_prefix  TEXT,
+    commsgroupcode   TEXT,
+    is_joint         INTEGER DEFAULT 0,
+    raw_data_json    TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_sheet_cache_acc ON sheet_accounts_cache(account);
+CREATE INDEX IF NOT EXISTS idx_sheet_cache_name ON sheet_accounts_cache(raw_name);
 """
 
 _SEED_CLIENTGROUP = [
@@ -70,6 +93,7 @@ _SEED_CLIENTGROUP = [
     (None,   "Gurgaon",   None,       0,    "GURFI",   10),
     (None,   "Bengaluru", None,       None, "BAN",      5),
     (None,   "Mumbai",    None,       None, "MUM",      5),
+    (None,   "Dubai",     None,       None, "GLB",      5),
 ]
 
 # Prefixes ordered longest-first so EEGG is matched before EE
@@ -108,6 +132,14 @@ def init_db() -> None:
                 "VALUES (?,?,?,?,?,?)",
                 _SEED_CLIENTGROUP,
             )
+        else:
+            # Ensure Dubai rule is present if DB was already seeded
+            if conn.execute("SELECT COUNT(*) FROM clientgroup_rules WHERE location = 'Dubai'").fetchone()[0] == 0:
+                conn.execute(
+                    "INSERT INTO clientgroup_rules (comms_code, location, sub_branch, is_commodity, clientgroup, priority) "
+                    "VALUES (?,?,?,?,?,?)",
+                    (None, "Dubai", None, None, "GLB", 5),
+                )
 
         # Seed broker_rules only if empty
         if conn.execute("SELECT COUNT(*) FROM broker_rules").fetchone()[0] == 0:
@@ -265,6 +297,171 @@ def delete_subgroup_suffix(rule_id: int) -> bool:
         cur = conn.execute("DELETE FROM clientsubgroup_suffixes WHERE id=?", (rule_id,))
         conn.commit()
         return cur.rowcount > 0
+
+
+# ---------------------------------------------------------------------------
+# sheet_config CRUD
+# ---------------------------------------------------------------------------
+
+def get_sheet_config() -> Optional[dict]:
+    with _get_conn() as conn:
+        row = conn.execute("SELECT * FROM sheet_config WHERE id = 1").fetchone()
+        return dict(row) if row else None
+
+
+def save_sheet_config(
+    sheet_url: str,
+    sheet_id: str,
+    worksheet_gid: str = "",
+    sheet_title: str = "",
+    last_synced: str = "",
+) -> None:
+    with _get_conn() as conn:
+        conn.execute(
+            """
+            INSERT INTO sheet_config (id, sheet_url, sheet_id, worksheet_gid, sheet_title, last_synced)
+            VALUES (1, ?, ?, ?, ?, ?)
+            ON CONFLICT(id) DO UPDATE SET
+                sheet_url=excluded.sheet_url,
+                sheet_id=excluded.sheet_id,
+                worksheet_gid=excluded.worksheet_gid,
+                sheet_title=excluded.sheet_title,
+                last_synced=excluded.last_synced
+            """,
+            (sheet_url, sheet_id, str(worksheet_gid or ""), sheet_title, last_synced),
+        )
+        conn.commit()
+
+
+def clear_sheet_config() -> None:
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM sheet_config WHERE id = 1")
+        conn.execute("DELETE FROM sheet_accounts_cache")
+        conn.commit()
+
+
+def save_sheet_records_cache(records: List[Dict[str, Any]]) -> None:
+    """Replaces cached records in SQLite using a high-speed batch transaction."""
+    rows = []
+    for r in records:
+        acc = str(r.get("account", "")).strip().upper()
+        if not acc:
+            continue
+        rows.append((
+            acc,
+            r.get("raw_name", ""),
+            r.get("location", ""),
+            r.get("sub_branch", ""),
+            r.get("subgroup_prefix", ""),
+            r.get("commsgroupcode", ""),
+            1 if r.get("is_joint") else 0,
+            json.dumps(r),
+        ))
+
+    with _get_conn() as conn:
+        conn.execute("DELETE FROM sheet_accounts_cache")
+        if rows:
+            conn.executemany(
+                """
+                INSERT OR REPLACE INTO sheet_accounts_cache
+                (account, raw_name, location, sub_branch, subgroup_prefix, commsgroupcode, is_joint, raw_data_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                rows,
+            )
+        conn.commit()
+
+
+def get_cached_records_count() -> int:
+    """Returns count of accounts stored in SQLite cache."""
+    with _get_conn() as conn:
+        cur = conn.execute("SELECT COUNT(*) FROM sheet_accounts_cache")
+        return cur.fetchone()[0]
+
+
+def search_cached_accounts(query: str = "", limit: int = 50) -> List[Dict[str, Any]]:
+    """
+    High-performance indexed search for autocomplete or list.
+    Supports instant queries even with 100,000+ accounts.
+    """
+    limit_val = max(1, min(int(limit), 200))
+    q = (query or "").strip()
+
+    with _get_conn() as conn:
+        if not q:
+            cur = conn.execute(
+                """
+                SELECT account, raw_name, location, is_joint
+                FROM sheet_accounts_cache
+                ORDER BY account ASC
+                LIMIT ?
+                """,
+                (limit_val,),
+            )
+        else:
+            q_prefix = f"{q.upper()}%"
+            q_contain = f"%{q.lower()}%"
+            cur = conn.execute(
+                """
+                SELECT account, raw_name, location, is_joint
+                FROM sheet_accounts_cache
+                WHERE account LIKE ? OR LOWER(raw_name) LIKE ?
+                ORDER BY (CASE WHEN account LIKE ? THEN 0 ELSE 1 END), account ASC
+                LIMIT ?
+                """,
+                (q_prefix, q_contain, q_prefix, limit_val),
+            )
+
+        return [
+            {
+                "account": row["account"],
+                "name": row["raw_name"],
+                "branch": row["location"],
+                "is_joint": bool(row["is_joint"]),
+            }
+            for row in cur.fetchall()
+        ]
+
+
+def lookup_cached_account(account_code: str) -> Optional[Dict[str, Any]]:
+    """O(1) indexed lookup for a single account from SQLite cache."""
+    acc = (account_code or "").strip().upper()
+    if not acc:
+        return None
+
+    with _get_conn() as conn:
+        cur = conn.execute(
+            "SELECT raw_data_json FROM sheet_accounts_cache WHERE account = ?",
+            (acc,),
+        )
+        row = cur.fetchone()
+        if not row or not row["raw_data_json"]:
+            return None
+        try:
+            return json.loads(row["raw_data_json"])
+        except Exception:
+            return None
+
+
+def batch_lookup_cached_accounts(account_list: List[str]) -> Dict[str, Dict[str, Any]]:
+    """Batch lookup for accounts in SQLite cache."""
+    clean_accs = list({a.strip().upper() for a in account_list if a.strip()})
+    if not clean_accs:
+        return {}
+
+    placeholders = ",".join("?" for _ in clean_accs)
+    with _get_conn() as conn:
+        cur = conn.execute(
+            f"SELECT account, raw_data_json FROM sheet_accounts_cache WHERE account IN ({placeholders})",
+            clean_accs,
+        )
+        res = {}
+        for row in cur.fetchall():
+            try:
+                res[row["account"]] = json.loads(row["raw_data_json"])
+            except Exception:
+                pass
+        return res
 
 
 # ---------------------------------------------------------------------------

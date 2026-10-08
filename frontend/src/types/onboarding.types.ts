@@ -6,7 +6,7 @@ export interface OnboardingUserInput {
   clientid: string;           // max 13 chars; drives accountid, accountmap
   email: string;              // drives emailaddress, useremail
   commsgroupcode: string;     // e.g. CWSYM, ALGO, or custom code
-  location: 'Kolkata' | 'Gurgaon' | 'Bengaluru' | 'Mumbai' | '';
+  location: 'Kolkata' | 'Gurgaon' | 'Bengaluru' | 'Mumbai' | 'Dubai' | '';
   sub_branch: 'Senior' | 'Junior' | '';   // only when location = Kolkata
   is_commodity: boolean;                  // only when location = Gurgaon
   subgroupPrefix: string;                 // up to 8 digits, prepended to derived suffix
@@ -68,3 +68,51 @@ export const EMPTY_USER_INPUT: OnboardingUserInput = {
   is_commodity: false,
   subgroupPrefix: '',
 };
+
+// ─── Google Sheet Integration Types ──────────────────────────────────────────
+export interface SheetStatus {
+  configured: boolean;
+  connected: boolean;
+  sheet_title: string;
+  sheet_url: string;
+  worksheet_gid: string;
+  row_count: number;
+  service_email: string;
+  last_synced: string | null;
+  message?: string;
+  error?: string;
+}
+
+export interface SheetAccountItem {
+  account: string;
+  name: string;
+  branch: string;
+  is_joint: boolean;
+}
+
+export interface SheetPersonItem {
+  label: string;
+  input: OnboardingUserInput;
+  derived: OnboardingDerived;
+}
+
+export interface SheetAccountRecord {
+  account: string;
+  raw_name: string;
+  raw_email: string;
+  location: string;
+  sub_branch: string;
+  subgroup_prefix: string;
+  commsgroupcode: string;
+  is_joint: boolean;
+  persons: SheetPersonItem[];
+  selected?: SheetPersonItem;
+}
+
+export interface BatchFetchResult {
+  success: boolean;
+  rows: SheetPersonItem[];
+  missing: string[];
+  joint_detected: string[];
+}
+
