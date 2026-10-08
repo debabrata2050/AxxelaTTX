@@ -1,26 +1,36 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
+import { apiClient } from '@/lib/apiClient';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { BasketBar } from '@/components/layout/BasketBar';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { FileSwitchModal } from '@/components/ui/FileSwitchModal';
+import { OnboardingTab } from '@/components/onboarding/OnboardingTab';
 
 import { Step0FileSelect } from '@/components/steps/Step0FileSelect';
 import { Step1RouteMap } from '@/components/steps/Step1RouteMap';
 import { Step2Contracts } from '@/components/steps/Step2Contracts';
 import { Step3Allocations } from '@/components/steps/Step3Allocations';
 import { Step4PreviewExport } from '@/components/steps/Step4PreviewExport';
-import { Loader2, CheckCircle2, Circle, XCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Circle, XCircle, AlertTriangle, Info } from 'lucide-react';
+
+type AppMode = 'trade' | 'onboarding';
 
 export default function WizardPage() {
   const {
     currentStep,
     setStep,
     resetSession,
+    sessionId,
+    sessionMismatch,
+    setSessionMismatch,
+    multiTabConflict,
+    setMultiTabConflict,
+    setActiveFile,
     isLoading,
     loadingTitle,
     loadingSubtitle,
@@ -32,35 +42,179 @@ export default function WizardPage() {
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [isFileSwitchModalOpen, setIsFileSwitchModalOpen] = useState(false);
+  const [appMode, setAppMode] = useState<AppMode>('trade');
+  const [reconnectCandidate, setReconnectCandidate] = useState<any | null>(null);
+
+  useEffect(() => {
+    // Check backend status on mount to detect restarts or tab reconnection
+    apiClient
+      .getStatus()
+      .then((status) => {
+        const storedId = typeof window !== 'undefined' ? localStorage.getItem('trade_session_id') : null;
+
+        if (storedId) {
+          if (!status.loaded || status.session_id !== storedId) {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('trade_session_id');
+              localStorage.removeItem('trade_file_path');
+            }
+            if (currentStep > 0) {
+              setSessionMismatch(true);
+            }
+          } else if (currentStep === 0 && status.loaded && status.session_id === storedId) {
+            setReconnectCandidate(status);
+          }
+        }
+      })
+      .catch(() => {});
+  }, [currentStep, setSessionMismatch]);
+
+  const handleResumeSession = () => {
+    if (!reconnectCandidate) return;
+    setActiveFile({
+      filePath: reconnectCandidate.current_file || '',
+      filename: reconnectCandidate.filename || '',
+      clientGroup: reconnectCandidate.client_group || 'SYM',
+      date: reconnectCandidate.default_date || '',
+      accounts: (reconnectCandidate.accounts || []).map((a: any) => a.account),
+      recordCount: reconnectCandidate.total_rows || 0,
+      sessionId: reconnectCandidate.session_id,
+    });
+    setReconnectCandidate(null);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--canvas-bg)]">
-      {/* Sidebar for Desktop / Tablet */}
-      <Sidebar onResetConfirm={() => setShowResetConfirm(true)} />
+      {/* Sidebar for Desktop / Tablet — only in trade mode */}
+      {appMode === 'trade' && <Sidebar onResetConfirm={() => setShowResetConfirm(true)} />}
 
-      {/* Mobile Drawer */}
-      <MobileDrawer onResetConfirm={() => setShowResetConfirm(true)} />
+      {/* Mobile Drawer — only in trade mode */}
+      {appMode === 'trade' && <MobileDrawer onResetConfirm={() => setShowResetConfirm(true)} />}
 
       {/* Main Workspace */}
       <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden bg-[var(--canvas-bg)]">
-        {/* Header with Title Bar File Indicator, Theme Toggle, No Green Dot */}
+        {/* Header */}
         <Header onOpenFileModal={() => setIsFileSwitchModalOpen(true)} />
+
+        {/* Session Status Alerts & Banners */}
+        {sessionMismatch && (
+          <div className="bg-red-500/15 border-b border-red-500/30 px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-red-300 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0" />
+              <span>Backend was restarted or session expired. Please reload your file to continue.</span>
+            </div>
+            <button
+              onClick={() => {
+                setSessionMismatch(false);
+                resetSession();
+              }}
+              className="px-3 py-1 bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 rounded text-red-200 font-semibold transition cursor-pointer"
+            >
+              Reload File
+            </button>
+          </div>
+        )}
+
+        {multiTabConflict && (
+          <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-amber-300 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+              <span>Another browser tab loaded a new file. Your current session may be out of sync.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMultiTabConflict(false)}
+                className="px-2.5 py-1 text-xs text-amber-300/80 hover:text-white transition cursor-pointer"
+              >
+                Dismiss
+              </button>
+              <button
+                onClick={() => {
+                  setMultiTabConflict(false);
+                  resetSession();
+                }}
+                className="px-3 py-1 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 rounded text-amber-200 font-semibold transition cursor-pointer"
+              >
+                Reset Session
+              </button>
+            </div>
+          </div>
+        )}
+
+        {reconnectCandidate && currentStep === 0 && (
+          <div className="bg-emerald-500/15 border-b border-emerald-500/30 px-4 sm:px-6 py-2.5 flex items-center justify-between text-xs text-emerald-300 animate-in fade-in">
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <span>Active file session found on backend ({reconnectCandidate.filename}). Resume session?</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setReconnectCandidate(null)}
+                className="px-2.5 py-1 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+              >
+                Ignore
+              </button>
+              <button
+                onClick={handleResumeSession}
+                className="px-3 py-1 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 rounded text-emerald-200 font-semibold transition cursor-pointer"
+              >
+                Resume Session
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Mode toggle tab bar */}
+        <div className="flex items-center justify-between px-4 sm:px-6 pt-3 border-b border-[var(--border-card)] bg-[var(--canvas-bg)]">
+          <div className="flex items-center gap-1">
+            {(
+              [
+                { id: 'trade',      label: 'Trade Transfer' },
+                { id: 'onboarding', label: 'People Onboarding' },
+              ] as { id: AppMode; label: string }[]
+            ).map((m) => (
+              <button
+                key={m.id}
+                onClick={() => setAppMode(m.id)}
+                className={`
+                  px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 -mb-px
+                  ${appMode === m.id
+                    ? 'border-[var(--accent-gold)] text-[var(--accent-gold)]'
+                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'}
+                `}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
+
+          {appMode === 'onboarding' && currentStep > 0 && (
+            <div className="flex items-center gap-1.5 text-[11px] text-[var(--accent-gold)] bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/20 px-2.5 py-1 rounded-full font-mono mb-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-gold)] animate-pulse" />
+              <span>Trade Session Paused (Step {currentStep})</span>
+            </div>
+          )}
+        </div>
 
         {/* Content Area */}
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            <div key={currentStep} className="step-view-enter space-y-6">
-              {currentStep === 0 && <Step0FileSelect />}
-              {currentStep === 1 && <Step1RouteMap />}
-              {currentStep === 2 && <Step2Contracts />}
-              {currentStep === 3 && <Step3Allocations />}
-              {currentStep === 4 && <Step4PreviewExport />}
-            </div>
+            {appMode === 'onboarding' ? (
+              <OnboardingTab />
+            ) : (
+              <div key={currentStep} className="step-view-enter space-y-6">
+                {currentStep === 0 && <Step0FileSelect />}
+                {currentStep === 1 && <Step1RouteMap />}
+                {currentStep === 2 && <Step2Contracts />}
+                {currentStep === 3 && <Step3Allocations />}
+                {currentStep === 4 && <Step4PreviewExport />}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sticky Status Basket Bar */}
-        <BasketBar />
+        {/* Sticky Status Basket Bar — only in trade mode */}
+        {appMode === 'trade' && <BasketBar />}
       </main>
 
       {/* Global Loading Overlay with Step-by-Step Progress */}

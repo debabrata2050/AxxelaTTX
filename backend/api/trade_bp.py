@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify
 from services.trade_service import trade_service
+from api.session_guard import require_session
 
 trade_bp = Blueprint("trade_bp", __name__)
 
 
 @trade_bp.route("/api/accounts", methods=["GET"])
+@require_session
 def get_accounts():
     q = request.args.get("q", "").strip()
     accounts = trade_service.search_accounts(query=q)
@@ -12,6 +14,7 @@ def get_accounts():
 
 
 @trade_bp.route("/api/contracts", methods=["GET"])
+@require_session
 def get_contracts():
     accounts_param = request.args.get("accounts", "").strip()
     product_param = request.args.get("product", "ALL").strip()
@@ -23,6 +26,7 @@ def get_contracts():
 
 
 @trade_bp.route("/api/trades", methods=["POST"])
+@require_session
 def get_trades():
     data = request.json or {}
     accounts = data.get("accounts", [])
@@ -37,3 +41,4 @@ def get_trades():
         product=product
     )
     return jsonify({"trades": trades, "count": len(trades)})
+

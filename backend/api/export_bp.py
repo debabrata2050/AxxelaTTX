@@ -1,10 +1,12 @@
 from flask import Blueprint, request, jsonify, send_file
 from services.trade_service import trade_service
+from api.session_guard import require_session
 
 export_bp = Blueprint("export_bp", __name__)
 
 
 @export_bp.route("/api/build-preview", methods=["POST"])
+@require_session
 def build_preview():
     data = request.json or {}
     allocations = data.get("allocations", [])
@@ -22,11 +24,14 @@ def build_preview():
             output_mode=output_mode
         )
         return jsonify(preview_data)
+    except FileNotFoundError:
+        raise
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
 
 @export_bp.route("/api/export-excel", methods=["POST"])
+@require_session
 def export_excel():
     data = request.json or {}
     rows = data.get("rows", [])
@@ -40,5 +45,8 @@ def export_excel():
             download_name=filename if filename.endswith(".xlsx") else f"{filename}.xlsx",
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+    except FileNotFoundError:
+        raise
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+

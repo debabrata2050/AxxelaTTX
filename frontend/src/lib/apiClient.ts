@@ -1,15 +1,30 @@
 import { PreviewResponse, WorkspaceFile } from '@/types/trade.types';
+import { useTradeStore } from '@/store/useTradeStore';
+
+function getSessionHeaders(): Record<string, string> {
+  const sid = useTradeStore.getState().sessionId;
+  return sid ? { 'X-Session-Id': sid } : {};
+}
 
 async function handleResponse<T = any>(res: Response): Promise<T> {
   const text = await res.text();
   try {
     const data = JSON.parse(text);
-    if (!res.ok && data?.error) {
-      throw new Error(data.error);
+    if (!res.ok) {
+      if (res.status === 409) {
+        useTradeStore.getState().setSessionMismatch(true);
+      }
+      if (data?.error) {
+        throw new Error(data.message || data.error);
+      }
+      throw new Error(`Server error (${res.status})`);
     }
     return data;
   } catch (err: any) {
     if (!res.ok) {
+      if (res.status === 409) {
+        useTradeStore.getState().setSessionMismatch(true);
+      }
       throw new Error(`Server error (${res.status}): ${text.slice(0, 100)}`);
     }
     throw err;
@@ -61,7 +76,9 @@ export const apiClient = {
   },
 
   async getAccounts(query = '') {
-    const res = await fetch(`/api/accounts?q=${encodeURIComponent(query)}`);
+    const res = await fetch(`/api/accounts?q=${encodeURIComponent(query)}`, {
+      headers: { ...getSessionHeaders() },
+    });
     return handleResponse(res);
   },
 
@@ -71,14 +88,19 @@ export const apiClient = {
       product,
       q: query,
     });
-    const res = await fetch(`/api/contracts?${params.toString()}`);
+    const res = await fetch(`/api/contracts?${params.toString()}`, {
+      headers: { ...getSessionHeaders() },
+    });
     return handleResponse(res);
   },
 
   async getTrades(accounts: string[], contractIds: string[], product: string) {
     const res = await fetch('/api/trades', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(),
+      },
       body: JSON.stringify({
         accounts,
         contract_ids: contractIds,
@@ -96,6 +118,7 @@ export const apiClient = {
       to_account: string;
       transfer_qty: number;
       custom_price: number | null;
+      price_mode?: string | null;
     }>;
     price_mode: string;
     manual_price: number | null;
@@ -103,7 +126,10 @@ export const apiClient = {
   }): Promise<PreviewResponse> {
     const res = await fetch('/api/build-preview', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(),
+      },
       body: JSON.stringify(payload),
     });
     return handleResponse<PreviewResponse>(res);
@@ -112,14 +138,20 @@ export const apiClient = {
   async exportExcel(rows: (string | number | null)[][], filename: string): Promise<Blob> {
     const res = await fetch('/api/export-excel', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(),
+      },
       body: JSON.stringify({ rows, filename }),
     });
     if (!res.ok) {
+      if (res.status === 409) {
+        useTradeStore.getState().setSessionMismatch(true);
+      }
       const text = await res.text();
       try {
         const err = JSON.parse(text);
-        throw new Error(err.error || 'Failed to generate Excel file.');
+        throw new Error(err.message || err.error || 'Failed to generate Excel file.');
       } catch {
         throw new Error(`Failed to generate Excel file (${res.status})`);
       }

@@ -34,6 +34,8 @@ def select_file():
     try:
         res = trade_service.load_file(file_path)
         return jsonify(res)
+    except FileNotFoundError as fnf:
+        return jsonify({"success": False, "error": str(fnf)}), 410
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 400
 
@@ -84,6 +86,7 @@ def upload_file():
         res = trade_service.load_file(target_path)
         # Display the friendly original filename
         res["filename"] = raw_filename
+        res["filepath"] = target_path
         return jsonify(res)
     except PermissionError as pe:
         return jsonify({

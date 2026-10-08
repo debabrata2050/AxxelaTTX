@@ -8,11 +8,51 @@ import {
   TransferRoute,
 } from '@/types/trade.types';
 
+let sessionChannel: BroadcastChannel | null = null;
+const TAB_ID = typeof window !== 'undefined' ? Math.random().toString(36).slice(2, 9) : 'server';
+
+if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+  try {
+    sessionChannel = new BroadcastChannel('trade_session');
+    sessionChannel.onmessage = (event) => {
+      const data = event.data;
+      if (data && data.tabId !== TAB_ID) {
+        const currentSession = useTradeStore.getState().sessionId;
+        if (currentSession && data.sessionId && data.sessionId !== currentSession) {
+          useTradeStore.getState().setMultiTabConflict(true);
+        }
+      }
+    };
+  } catch (e) {
+    console.warn('BroadcastChannel error', e);
+  }
+}
+
+function broadcastSession(sessionId: string | null) {
+  if (sessionChannel && sessionId) {
+    try {
+      sessionChannel.postMessage({
+        sessionId,
+        tabId: TAB_ID,
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.warn('BroadcastChannel postMessage error', e);
+    }
+  }
+}
+
 interface TradeState {
   theme: 'dark' | 'light';
   currentStep: number;
   isMobileDrawerOpen: boolean;
   isSidebarCollapsed: boolean;
+
+  // Session & Lifecycle
+  sessionId: string | null;
+  sessionMismatch: boolean;
+  multiTabConflict: boolean;
+
 
   // Active File & Metadata
   activeFilePath: string | null;
@@ -60,6 +100,8 @@ interface TradeState {
   setStep: (step: number) => void;
   toggleMobileDrawer: (open?: boolean) => void;
   toggleSidebarCollapsed: () => void;
+  setSessionMismatch: (mismatch: boolean) => void;
+  setMultiTabConflict: (conflict: boolean) => void;
 
   setActiveFile: (data: {
     filePath: string;
@@ -68,6 +110,7 @@ interface TradeState {
     date?: string;
     accounts?: string[];
     recordCount?: number;
+    sessionId?: string;
   }) => void;
 
   addRoute: (from: string, to: string) => boolean;
@@ -115,6 +158,10 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   currentStep: 0,
   isMobileDrawerOpen: false,
   isSidebarCollapsed: false,
+
+  sessionId: null,
+  sessionMismatch: false,
+  multiTabConflict: false,
 
   activeFilePath: null,
   activeFilename: null,
@@ -164,7 +211,15 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     get().setTheme(nextTheme);
   },
 
-  setStep: (step) => set({ currentStep: step, isMobileDrawerOpen: false }),
+  setStep: (step) =>
+    set((state) => {
+      const isBackward = step < state.currentStep;
+      return {
+        currentStep: step,
+        isMobileDrawerOpen: false,
+        ...(isBackward && state.previewRows.length > 0 ? { previewRows: [], previewSummary: null } : {}),
+      };
+    }),
 
   toggleMobileDrawer: (open) =>
     set((state) => ({
@@ -174,8 +229,20 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   toggleSidebarCollapsed: () =>
     set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
 
-  setActiveFile: ({ filePath, filename, clientGroup, date, accounts, recordCount }) =>
+  setSessionMismatch: (sessionMismatch) => set({ sessionMismatch }),
+  setMultiTabConflict: (multiTabConflict) => set({ multiTabConflict }),
+
+  setActiveFile: ({ filePath, filename, clientGroup, date, accounts, recordCount, sessionId }) => {
+    const sId = sessionId || null;
+    if (typeof window !== 'undefined') {
+      if (sId) localStorage.setItem('trade_session_id', sId);
+      if (filePath) localStorage.setItem('trade_file_path', filePath);
+    }
+    broadcastSession(sId);
     set({
+      sessionId: sId,
+      sessionMismatch: false,
+      multiTabConflict: false,
       activeFilePath: filePath,
       activeFilename: filename,
       clientGroup: clientGroup || 'SYM',
@@ -189,9 +256,11 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       selectedContracts: [],
       allocations: {},
       previewRows: [],
+      previewSummary: null,
       exportFilename: '',
       outputMode: 'paired',
-    }),
+    });
+  },
 
   addRoute: (from, to) => {
     const uFrom = from.trim().toUpperCase();
@@ -222,7 +291,19 @@ export const useTradeStore = create<TradeState>((set, get) => ({
           nextMap[key] = c;
         }
       });
-      return { contracts, allLoadedContracts: nextMap };
+
+      // Edge case 6: Clean allocations for contracts that are no longer part of active list
+      const validCodes = new Set(contracts.map((c) => c.contractcode || c.contract_id));
+      const validTrades = state.trades.filter((t) => validCodes.has(t.contractcode));
+      const validTradeIds = new Set(validTrades.map((t) => t.row_id));
+      const filteredAlloc: Record<string, TradeAllocation> = {};
+      Object.keys(state.allocations).forEach((rid) => {
+        if (validTradeIds.has(rid)) {
+          filteredAlloc[rid] = state.allocations[rid];
+        }
+      });
+
+      return { contracts, allLoadedContracts: nextMap, trades: validTrades, allocations: filteredAlloc };
     }),
 
   setOutputMode: (mode) => set({ outputMode: mode }),
@@ -282,17 +363,31 @@ export const useTradeStore = create<TradeState>((set, get) => ({
             transfer_qty: t.qtybalance,
             custom_price:
               state.priceMode === 'settle'
-                ? t.settle || t.price
+                ? t.settle ?? t.price
                 : state.priceMode === 'manual' && state.globalManualPrice !== null
                 ? state.globalManualPrice
                 : t.price,
             to_account: defaultTo,
+            price_mode: state.priceMode,
           };
-        } else if (!newAllocations[t.row_id].to_account && defaultTo) {
-          newAllocations[t.row_id].to_account = defaultTo;
+        } else {
+          // Edge case 12: preserve explicit custom_price and price_mode; fill default to_account if not set
+          if (!newAllocations[t.row_id].to_account && defaultTo) {
+            newAllocations[t.row_id].to_account = defaultTo;
+          }
         }
       });
-      return { trades, allocations: newAllocations };
+
+      // Prune allocations not in new trades
+      const activeRowIds = new Set(trades.map((t) => t.row_id));
+      const cleanedAlloc: Record<string, TradeAllocation> = {};
+      Object.keys(newAllocations).forEach((rid) => {
+        if (activeRowIds.has(rid)) {
+          cleanedAlloc[rid] = newAllocations[rid];
+        }
+      });
+
+      return { trades, allocations: cleanedAlloc };
     }),
 
   setPriceMode: (mode) =>
@@ -300,8 +395,10 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       const updatedAlloc = { ...state.allocations };
       state.trades.forEach((t) => {
         if (updatedAlloc[t.row_id]) {
+          // Explicitly set every row to the chosen mode so dropdowns stay in sync
+          updatedAlloc[t.row_id].price_mode = mode;
           if (mode === 'settle') {
-            updatedAlloc[t.row_id].custom_price = t.settle || t.price;
+            updatedAlloc[t.row_id].custom_price = t.settle ?? t.price;
           } else if (mode === 'manual' && state.globalManualPrice !== null) {
             updatedAlloc[t.row_id].custom_price = state.globalManualPrice;
           } else {
@@ -318,6 +415,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       if (state.priceMode === 'manual' && price !== null) {
         state.trades.forEach((t) => {
           if (updatedAlloc[t.row_id]) {
+            updatedAlloc[t.row_id].price_mode = 'manual';
             updatedAlloc[t.row_id].custom_price = price;
           }
         });
@@ -335,6 +433,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
             transfer_qty: 0,
             custom_price: 0,
             to_account: '',
+            price_mode: null,
           }),
           ...updates,
         },
@@ -445,7 +544,14 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
   resetSession: () => {
     fetch('/api/unload-file', { method: 'POST' }).catch(() => {});
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('trade_session_id');
+      localStorage.removeItem('trade_file_path');
+    }
     set({
+      sessionId: null,
+      sessionMismatch: false,
+      multiTabConflict: false,
       currentStep: 0,
       activeFilePath: null,
       activeFilename: null,

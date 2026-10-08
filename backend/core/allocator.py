@@ -3,7 +3,7 @@ from typing import List, Dict, Any, Tuple, Optional
 import pandas as pd
 
 from core.models import EXCEL_HEADERS, TradeAllocation
-from core.strategies import PriceStrategy, clean_num
+from core.strategies import PriceStrategy, clean_num, get_price_strategy
 
 
 def parse_trade_date(val: Any) -> Optional[datetime]:
@@ -71,9 +71,7 @@ class TradeTransferAllocator:
         contract_expiry = parse_trade_date(row_dict.get("contractexpiry", ""))
         exp_date = parse_trade_date(row_dict.get("expirydate", ""))
 
-        market_id = clean_num(row_dict.get("exchangecode", ""))
-        if market_id is not None and isinstance(market_id, float) and market_id.is_integer():
-            market_id = int(market_id)
+        market_id = clean_str(row_dict.get("exchangecode", ""))
 
         # Date
         trade_dt = parse_trade_date(custom_date) if custom_date else None
@@ -112,8 +110,20 @@ class TradeTransferAllocator:
         row_id_map: Dict[str, Dict[str, Any]],
         price_strategy: PriceStrategy,
         custom_date: Optional[str] = None,
-        output_mode: str = "paired"
+        output_mode: str = "paired",
+        global_price_mode: str = "price",
+        global_manual_price: Optional[float] = None,
     ) -> Tuple[List[List[Any]], List[int], Dict[str, Any]]:
+        def _resolve_price(alloc: TradeAllocation, row_dict: Dict[str, Any]) -> Optional[float]:
+            """Use per-row price_mode when set; fall back to global strategy."""
+            if alloc.price_mode and alloc.price_mode != global_price_mode:
+                row_strategy = get_price_strategy(
+                    mode=alloc.price_mode,
+                    global_manual_price=alloc.custom_price
+                )
+                return row_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+            return price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+
         # Group allocations by (from_account, to_account)
         routes_map: Dict[Tuple[str, str], List[TradeAllocation]] = {}
         for alloc in allocations:
@@ -135,7 +145,7 @@ class TradeTransferAllocator:
                     if not row_dict:
                         continue
                     orig_side = clean_str(row_dict.get("transactiontype", ""))
-                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    price = _resolve_price(alloc, row_dict)
                     qty = alloc.transfer_qty
 
                     dest_row = cls.build_transfer_row(
@@ -161,7 +171,7 @@ class TradeTransferAllocator:
                         continue
                     orig_side = clean_str(row_dict.get("transactiontype", ""))
                     rev_side = flip_side(orig_side)
-                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    price = _resolve_price(alloc, row_dict)
                     qty = alloc.transfer_qty
 
                     src_row = cls.build_transfer_row(
@@ -189,7 +199,7 @@ class TradeTransferAllocator:
                     if not row_dict:
                         continue
                     orig_side = clean_str(row_dict.get("transactiontype", ""))
-                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    price = _resolve_price(alloc, row_dict)
                     qty = alloc.transfer_qty
 
                     dest_row = cls.build_transfer_row(
@@ -214,7 +224,7 @@ class TradeTransferAllocator:
                         continue
                     orig_side = clean_str(row_dict.get("transactiontype", ""))
                     rev_side = flip_side(orig_side)
-                    price = price_strategy.resolve_price(row_dict, custom_price=alloc.custom_price)
+                    price = _resolve_price(alloc, row_dict)
                     qty = alloc.transfer_qty
 
                     src_row = cls.build_transfer_row(

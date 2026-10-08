@@ -205,10 +205,13 @@ export const Step3Allocations: React.FC = () => {
 
       {/* Pricing Strategy Cards */}
       <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-4">
-        <h3 className="text-base font-bold text-[var(--text-main)]">TradePrice Source Selection</h3>
+        <h3 className="text-base font-bold text-[var(--text-main)]">Trade Price Source Selection</h3>
+        <p className="text-xs text-[var(--text-muted)] -mt-2">
+          Selecting a mode below applies it to <strong>all rows</strong>. You can still override individual rows using the dropdown in the table.
+        </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Market Price */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Trade Price */}
           <label
             onClick={() => setPriceMode('price')}
             className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 ease-out flex items-center justify-between select-none hover:-translate-y-0.5 ${priceMode === 'price'
@@ -225,10 +228,9 @@ export const Step3Allocations: React.FC = () => {
                 className="w-4 h-4 accent-[var(--accent-gold)] cursor-pointer transition-transform duration-200 group-hover:scale-110"
               />
               <span className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors duration-200">
-                Market Price
+                Trade Price
               </span>
             </div>
-
             <div
               className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${priceMode === 'price'
                   ? 'bg-[var(--accent-gold)]/15 border-[var(--accent-gold)]/30 text-[var(--accent-gold)] shadow-sm scale-105'
@@ -239,7 +241,7 @@ export const Step3Allocations: React.FC = () => {
             </div>
           </label>
 
-          {/* Settle Price */}
+          {/* Settlement Price */}
           <label
             onClick={() => setPriceMode('settle')}
             className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 ease-out flex items-center justify-between select-none hover:-translate-y-0.5 ${priceMode === 'settle'
@@ -259,7 +261,6 @@ export const Step3Allocations: React.FC = () => {
                 Settlement Price
               </span>
             </div>
-
             <div
               className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${priceMode === 'settle'
                   ? 'bg-[var(--accent-gold)]/15 border-[var(--accent-gold)]/30 text-[var(--accent-gold)] shadow-sm scale-105'
@@ -269,7 +270,62 @@ export const Step3Allocations: React.FC = () => {
               <Scale className="w-4 h-4 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-12" />
             </div>
           </label>
+
+          {/* Manual Price */}
+          <label
+            onClick={() => setPriceMode('manual')}
+            className={`group relative p-4 rounded-xl border cursor-pointer transition-all duration-300 ease-out flex items-center justify-between select-none hover:-translate-y-0.5 ${priceMode === 'manual'
+                ? 'border-[var(--accent-gold)] bg-[var(--card-hover)] shadow-md shadow-[var(--accent-gold)]/5 ring-1 ring-[var(--accent-gold)]/30'
+                : 'border-[var(--border-card)] bg-[var(--input-bg)] hover:border-[var(--border-subtle)] hover:bg-[var(--card-hover)]/40 shadow-sm'
+              }`}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="radio"
+                name="price-strategy"
+                checked={priceMode === 'manual'}
+                onChange={() => setPriceMode('manual')}
+                className="w-4 h-4 accent-[var(--accent-gold)] cursor-pointer transition-transform duration-200 group-hover:scale-110"
+              />
+              <span className="text-sm font-bold text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors duration-200">
+                Manual
+              </span>
+            </div>
+            <div
+              className={`flex items-center justify-center w-9 h-9 rounded-xl border transition-all duration-300 ${priceMode === 'manual'
+                  ? 'bg-[var(--accent-gold)]/15 border-[var(--accent-gold)]/30 text-[var(--accent-gold)] shadow-sm scale-105'
+                  : 'bg-[var(--card-bg)] border-[var(--border-card)] text-[var(--text-muted)] group-hover:text-[var(--accent-gold)] group-hover:border-[var(--border-subtle)] group-hover:scale-105'
+                }`}
+            >
+              <DollarSign className="w-4 h-4 transition-transform duration-300 group-hover:scale-110" />
+            </div>
+          </label>
         </div>
+
+        {/* Manual price input — shown only when Manual is selected */}
+        {priceMode === 'manual' && (
+          <div className="flex items-center gap-3 pt-1">
+            <label className="text-xs font-semibold text-[var(--text-muted)] whitespace-nowrap">
+              Apply price to all rows:
+            </label>
+            <input
+              type="number"
+              step="any"
+              min={0}
+              placeholder="Enter price..."
+              value={globalManualPrice !== null ? globalManualPrice : ''}
+              onChange={(e) => {
+                const v = e.target.value === '' ? null : parseFloat(e.target.value);
+                setGlobalManualPrice(v);
+              }}
+              autoFocus
+              className="w-36 px-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--accent-gold)]/50 text-sm font-bold font-mono text-[var(--accent-gold)] outline-none focus:border-[var(--accent-gold)] focus:ring-1 focus:ring-[var(--accent-gold)]/30 placeholder:text-[var(--text-muted)] placeholder:font-normal"
+            />
+            <span className="text-xs text-[var(--text-muted)]">
+              Individual rows can still be overridden in the table below.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Allocation Table Card */}
@@ -401,6 +457,7 @@ export const Step3Allocations: React.FC = () => {
                 <th className="p-3">Side</th>
                 <th className="p-3">Avail Lots</th>
                 <th className="p-3">Transfer Qty</th>
+                <th className="p-3">Price Mode</th>
                 <th className="p-3">Trade Price</th>
                 <th className="p-3">Expiry</th>
                 <th className="p-3">Date</th>
@@ -410,13 +467,13 @@ export const Step3Allocations: React.FC = () => {
             <tbody className="divide-y divide-[var(--border-subtle)] font-mono">
               {isLoading ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-[var(--text-muted)]">
+                  <td colSpan={11} className="py-12 text-center text-[var(--text-muted)]">
                     Loading trades...
                   </td>
                 </tr>
               ) : visibleTrades.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-[var(--text-muted)]">
+                  <td colSpan={11} className="py-12 text-center text-[var(--text-muted)]">
                     No matching trades found for selected contracts.
                   </td>
                 </tr>
@@ -435,6 +492,7 @@ export const Step3Allocations: React.FC = () => {
                     transfer_qty: t.qtybalance,
                     custom_price: t.price,
                     to_account: defaultTo,
+                    price_mode: null,
                   };
 
                   const isBuy = (t.transactiontype || '').toUpperCase() === 'B';
@@ -543,15 +601,50 @@ export const Step3Allocations: React.FC = () => {
                       </td>
 
                       <td className="p-3">
+                        {/* Per-row price mode override */}
+                        <select
+                          value={alloc.price_mode ?? priceMode}
+                          onChange={(e) => {
+                            const mode = e.target.value as 'price' | 'settle' | 'manual';
+                            updateAllocation(t.row_id, {
+                              price_mode: mode,
+                              custom_price:
+                                mode === 'settle'
+                                  ? t.settle ?? t.price
+                                  : mode === 'price'
+                                  ? t.price
+                                  : alloc.custom_price,
+                            });
+                          }}
+                          className="w-28 px-2 py-1 rounded-lg bg-[var(--input-bg)] border border-[var(--border-card)] text-xs font-mono text-[var(--text-main)] outline-none focus:border-[var(--accent-gold)]"
+                        >
+                          <option value="price">Trade Price</option>
+                          <option value="settle">Settlement</option>
+                          <option value="manual">Manual</option>
+                        </select>
+                      </td>
+
+                      <td className="p-3">
                         <input
                           type="number"
                           step="any"
                           value={alloc.custom_price !== null ? alloc.custom_price : ''}
+                          disabled={
+                            (alloc.price_mode ?? priceMode) === 'price' ||
+                            (alloc.price_mode ?? priceMode) === 'settle'
+                          }
                           onChange={(e) => {
                             const p = e.target.value === '' ? null : parseFloat(e.target.value);
-                            updateAllocation(t.row_id, { custom_price: p });
+                            updateAllocation(t.row_id, { custom_price: p, price_mode: 'manual' });
                           }}
-                          className="w-20 px-2 py-1 bg-[var(--input-bg)] rounded border border-[var(--border-card)] text-center text-xs font-bold text-[var(--accent-gold)] outline-none focus:border-[var(--accent-gold)]"
+                          className="w-20 px-2 py-1 bg-[var(--input-bg)] rounded border border-[var(--border-card)] text-center text-xs font-bold text-[var(--accent-gold)] outline-none focus:border-[var(--accent-gold)] disabled:opacity-40 disabled:cursor-not-allowed"
+                          title={
+                            (alloc.price_mode ?? priceMode) === 'price'
+                              ? 'Using trade price — switch mode to Manual to edit'
+                              : (alloc.price_mode ?? priceMode) === 'settle'
+                              ? 'Using settle price — switch mode to Manual to edit'
+                              : 'Enter custom price'
+                          }
                         />
                       </td>
 

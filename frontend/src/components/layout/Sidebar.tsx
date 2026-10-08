@@ -33,12 +33,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ onResetConfirm }) => {
     activeFilePath,
     routes,
     selectedContracts,
+    allLoadedContracts,
+    showAlert,
   } = useTradeStore();
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep > 0 && !activeFilePath) return;
     if (targetStep >= 2 && routes.length === 0) return;
-    if (targetStep >= 3 && selectedContracts.length === 0) return;
+    if (targetStep >= 3) {
+      if (selectedContracts.length === 0) {
+        showAlert('Contracts Required', 'Please select at least one contract before proceeding.');
+        return;
+      }
+      const uniqueSenders: string[] = Array.from(new Set(routes.map((r) => r.from)));
+      const unfulfilled = uniqueSenders.filter((s: string) => {
+        return !selectedContracts.some((key) => {
+          const item = allLoadedContracts[key];
+          if (item?.account) return item.account.toUpperCase() === s.toUpperCase();
+          if (key.includes('::')) return key.split('::')[0].toUpperCase() === s.toUpperCase();
+          return false;
+        });
+      });
+      if (unfulfilled.length > 0) {
+        showAlert(
+          'Missing Contract Selection',
+          `Each sender account requires at least one contract.\n\nMissing: ${unfulfilled.join(', ')}`
+        );
+        return;
+      }
+    }
     setStep(targetStep);
   };
 

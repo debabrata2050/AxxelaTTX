@@ -61,6 +61,7 @@ export interface TradeAllocation {
   transfer_qty: number;
   custom_price: number | null;
   to_account: string;
+  price_mode: PriceMode | null;   // per-row override; null = use global
 }
 
 export interface ExcelPreviewRow {

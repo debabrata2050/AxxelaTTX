@@ -25,6 +25,7 @@ class TradeAllocation:
     transfer_qty: float
     custom_price: Optional[float] = None
     custom_date: Optional[str] = None
+    price_mode: Optional[str] = None   # 'price' | 'settle' | 'manual' — overrides global when set
 
 
 @dataclass

@@ -16,13 +16,21 @@ import {
 } from 'lucide-react';
 
 export const Step0FileSelect: React.FC = () => {
-  const { setActiveFile, showLoadingSteps, updateLoadingStep, hideLoading, showAlert } =
-    useTradeStore();
+  const {
+    activeFilePath,
+    setActiveFile,
+    showLoadingSteps,
+    updateLoadingStep,
+    hideLoading,
+    showAlert,
+  } = useTradeStore();
 
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
   const [filterQuery, setFilterQuery] = useState('');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<WorkspaceFile | null>(null);
+  const [pendingSelectFile, setPendingSelectFile] = useState<WorkspaceFile | null>(null);
+  const [pendingUploadFile, setPendingUploadFile] = useState<File | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +57,15 @@ export const Step0FileSelect: React.FC = () => {
     fetchWorkspaceFiles();
   }, []);
 
-  const handleSelectFile = async (f: WorkspaceFile) => {
+  const handleSelectFile = (f: WorkspaceFile) => {
+    if (activeFilePath) {
+      setPendingSelectFile(f);
+      return;
+    }
+    executeSelectFile(f);
+  };
+
+  const executeSelectFile = async (f: WorkspaceFile) => {
     showLoadingSteps('Loading Trade File', f.name, FILE_PROCESSING_STEPS);
 
     let stage = 0;
@@ -96,6 +112,7 @@ export const Step0FileSelect: React.FC = () => {
           date: res.default_date || '',
           accounts: res.accounts || [],
           recordCount: res.total_records || 0,
+          sessionId: res.session_id,
         });
       }, 350);
     } catch (err: any) {
@@ -108,7 +125,7 @@ export const Step0FileSelect: React.FC = () => {
     }
   };
 
-  const handleFileUpload = async (file: File) => {
+  const handleFileUpload = (file: File) => {
     if (file.size > 500 * 1024 * 1024) {
       showAlert(
         'File Exceeds Limit',
@@ -117,6 +134,14 @@ export const Step0FileSelect: React.FC = () => {
       return;
     }
 
+    if (activeFilePath) {
+      setPendingUploadFile(file);
+      return;
+    }
+    executeFileUpload(file);
+  };
+
+  const executeFileUpload = async (file: File) => {
     showLoadingSteps('Uploading & Processing CSV', file.name, FILE_PROCESSING_STEPS);
 
     let stage = 0;
@@ -163,6 +188,7 @@ export const Step0FileSelect: React.FC = () => {
           date: res.default_date || '',
           accounts: res.accounts || [],
           recordCount: res.total_records || res.total_rows || 0,
+          sessionId: res.session_id,
         });
         fetchWorkspaceFiles();
       }, 350);
@@ -336,6 +362,31 @@ export const Step0FileSelect: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Confirmation Modal for Loading New File during Active Session */}
+      <ConfirmModal
+        isOpen={pendingSelectFile !== null || pendingUploadFile !== null}
+        title="Load New File?"
+        message="Loading a new file will reset your current trade session, routes, and allocations. Continue?"
+        confirmLabel="Continue & Reset"
+        cancelLabel="Cancel"
+        isDestructive={true}
+        onConfirm={() => {
+          if (pendingSelectFile) {
+            const f = pendingSelectFile;
+            setPendingSelectFile(null);
+            executeSelectFile(f);
+          } else if (pendingUploadFile) {
+            const up = pendingUploadFile;
+            setPendingUploadFile(null);
+            executeFileUpload(up);
+          }
+        }}
+        onCancel={() => {
+          setPendingSelectFile(null);
+          setPendingUploadFile(null);
+        }}
+      />
 
       {/* Confirmation Modal for File Deletion */}
       <ConfirmModal

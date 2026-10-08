@@ -41,6 +41,7 @@ export const Step4PreviewExport: React.FC = () => {
   const [editingCell, setEditingCell] = useState<{ r: number; c: number } | null>(null);
   const [editValue, setEditValue] = useState('');
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showExportSuccessModal, setShowExportSuccessModal] = useState(false);
 
   // Generate clean descriptive filename if not set
   const autoFilename = useMemo(() => {
@@ -85,6 +86,7 @@ export const Step4PreviewExport: React.FC = () => {
             to_account: toAcc,
             transfer_qty: a.transfer_qty,
             custom_price: a.custom_price,
+            price_mode: a.price_mode ?? null,
           });
         }
       }
@@ -157,6 +159,8 @@ export const Step4PreviewExport: React.FC = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      setShowExportSuccessModal(true);
     } catch (err: any) {
       hideLoading();
       showAlert('Download Failed', err.message);
@@ -427,6 +431,21 @@ export const Step4PreviewExport: React.FC = () => {
           resetSession();
         }}
         onCancel={() => setShowResetConfirm(false)}
+      />
+
+      {/* Transfer Complete Modal */}
+      <ConfirmModal
+        isOpen={showExportSuccessModal}
+        title="Transfer Complete"
+        message="Your formatted Excel transfer sheet has been successfully exported. Would you like to start a fresh session with a new file or stay here to review/re-export?"
+        confirmLabel="Start New Session"
+        cancelLabel="Stay Here"
+        isDestructive={false}
+        onConfirm={() => {
+          setShowExportSuccessModal(false);
+          resetSession();
+        }}
+        onCancel={() => setShowExportSuccessModal(false)}
       />
     </div>
   );

@@ -137,6 +137,7 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
           date: res.default_date || '',
           accounts: res.accounts || [],
           recordCount: res.total_records || res.total_rows || 0,
+          sessionId: res.session_id,
         });
       }, 350);
     } catch (err: any) {
@@ -205,6 +206,7 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
           date: res.default_date || '',
           accounts: res.accounts || [],
           recordCount: res.total_records || res.total_rows || 0,
+          sessionId: res.session_id,
         });
       }, 350);
     } catch (err: any) {
