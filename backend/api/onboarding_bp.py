@@ -129,7 +129,7 @@ def post_broker_rule():
     if not prefix or not distributor or not clearer:
         return jsonify({"error": "prefix, distributor, clearer_template are required"}), 400
     try:
-        rid = upsert_broker_rule(prefix, distributor, clearer)
+        rid = upsert_broker_rule(prefix, distributor, clearer, rule_id=d.get("id"))
         return jsonify({"success": True, "id": rid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -158,7 +158,7 @@ def post_subgroup_rule():
     if not clientgroup or not suffix:
         return jsonify({"error": "clientgroup and suffix are required"}), 400
     try:
-        rid = upsert_subgroup_suffix(clientgroup, suffix)
+        rid = upsert_subgroup_suffix(clientgroup, suffix, rule_id=d.get("id"))
         return jsonify({"success": True, "id": rid})
     except Exception as e:
         return jsonify({"error": str(e)}), 500

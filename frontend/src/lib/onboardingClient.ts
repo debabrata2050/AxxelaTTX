@@ -87,7 +87,7 @@ export async function fetchBrokerRules(): Promise<BrokerRule[]> {
 }
 
 export async function saveBrokerRule(
-  rule: Omit<BrokerRule, 'id'>,
+  rule: Partial<BrokerRule> & { prefix: string; distributor: string; clearer_template: string },
 ): Promise<{ success: boolean; id: number }> {
   const res = await fetch(`${BASE}/rules/brokers`, {
     method: 'POST',
@@ -109,7 +109,7 @@ export async function fetchSubgroupSuffixes(): Promise<SubgroupSuffix[]> {
 }
 
 export async function saveSubgroupSuffix(
-  rule: Omit<SubgroupSuffix, 'id'>,
+  rule: Partial<SubgroupSuffix> & { clientgroup: string; suffix: string },
 ): Promise<{ success: boolean; id: number }> {
   const res = await fetch(`${BASE}/rules/subgroups`, {
     method: 'POST',

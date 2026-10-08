@@ -1,0 +1,385 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { OnboardingRow, OnboardingUserInput, OnboardingDerived } from '@/types/onboarding.types';
+import { useOnboardingStore, previewDerived } from '@/store/useOnboardingStore';
+import { X, Pencil, Loader2, ChevronDown, Check } from 'lucide-react';
+
+interface EditRecordModalProps {
+  row: OnboardingRow | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (id: string, input: OnboardingUserInput, derived: OnboardingDerived) => void;
+}
+
+const LOCATIONS = ['Kolkata', 'Gurgaon', 'Bengaluru', 'Mumbai'] as const;
+
+function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: string;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+        {label}
+      </label>
+      {children}
+      {hint && <p className="text-[11px] text-[var(--text-muted)] opacity-60">{hint}</p>}
+    </div>
+  );
+}
+
+function Input({
+  value,
+  onChange,
+  placeholder,
+  maxLength,
+  type = 'text',
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  maxLength?: number;
+  type?: string;
+}) {
+  return (
+    <input
+      type={type}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      maxLength={maxLength}
+      placeholder={placeholder}
+      className="
+        w-full rounded-lg border border-[var(--border-card)] bg-[var(--input-bg)]
+        text-[var(--text-main)] text-sm px-3 py-2
+        focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]/50
+        placeholder:text-[var(--text-muted)] placeholder:opacity-50
+      "
+    />
+  );
+}
+
+function DerivedBadge({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+        {label}
+      </span>
+      <span className="font-mono text-xs text-[var(--accent-gold)] bg-[var(--accent-gold)]/10 px-2 py-0.5 rounded border border-[var(--accent-gold)]/20 min-h-[24px] flex items-center">
+        {value || <span className="opacity-30">—</span>}
+      </span>
+    </div>
+  );
+}
+
+export function EditRecordModal({
+  row,
+  isOpen,
+  onClose,
+  onSave,
+}: EditRecordModalProps) {
+  const { commsCodes } = useOnboardingStore();
+
+  const [form, setForm] = useState<OnboardingUserInput | null>(null);
+  const [derived, setDerived] = useState<OnboardingDerived | null>(null);
+  const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Synchronize form when row changes or modal opens
+  useEffect(() => {
+    if (row && isOpen) {
+      const { id: _id, derived: rowDerived, ...input } = row;
+      setForm({ ...input });
+      setDerived(rowDerived || null);
+      setPreviewError(null);
+    }
+  }, [row, isOpen]);
+
+  // Handle ESC key to close
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Debounced preview call on form changes
+  useEffect(() => {
+    if (!form || !isOpen) return;
+
+    const timer = setTimeout(async () => {
+      if (!form.clientid && !form.location) return;
+      setIsPreviewing(true);
+      setPreviewError(null);
+      try {
+        const d = await previewDerived(form);
+        setDerived(d);
+      } catch (e: any) {
+        setPreviewError(e.message);
+      } finally {
+        setIsPreviewing(false);
+      }
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [
+    form?.clientid,
+    form?.commsgroupcode,
+    form?.location,
+    form?.sub_branch,
+    form?.is_commodity,
+    form?.email,
+    form?.subgroupPrefix,
+    isOpen,
+  ]);
+
+  const set = useCallback(
+    <K extends keyof OnboardingUserInput>(key: K, val: OnboardingUserInput[K]) => {
+      setForm((f) => (f ? { ...f, [key]: val } : null));
+    },
+    [],
+  );
+
+  const handleSave = async () => {
+    if (!row || !form) return;
+    if (!form.firstname || !form.lastname || !form.clientid || !form.email || !form.location) {
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      let d = derived;
+      if (!d) d = await previewDerived(form);
+      onSave(row.id, form, d);
+      onClose();
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!isOpen || !row || !form) return null;
+
+  const isValid =
+    form.firstname.trim() &&
+    form.lastname.trim() &&
+    form.clientid.trim() &&
+    form.email.trim() &&
+    form.location;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-[var(--card-bg)] border border-[var(--border-card)] rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-card)]">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 rounded-lg bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] border border-[var(--accent-gold)]/20">
+              <Pencil className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-bold text-[var(--text-main)]">
+                Edit Person Record
+              </h2>
+              <p className="text-[11px] font-mono text-[var(--text-muted)]">
+                {row.clientid} • {row.firstname} {row.lastname}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/5 transition cursor-pointer"
+            aria-label="Close edit modal"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Modal Form Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Form Fields Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Field label="First Name">
+              <Input
+                value={form.firstname}
+                onChange={(v) => set('firstname', v)}
+                placeholder="First Name"
+              />
+            </Field>
+
+            <Field label="Last Name">
+              <Input
+                value={form.lastname}
+                onChange={(v) => set('lastname', v)}
+                placeholder="Last Name"
+              />
+            </Field>
+
+            <Field label="Client ID" hint="Max 13 characters">
+              <Input
+                value={form.clientid}
+                onChange={(v) => set('clientid', v)}
+                placeholder="e.g. KT0012345"
+                maxLength={13}
+              />
+            </Field>
+
+            <Field label="Email">
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(v) => set('email', v)}
+                placeholder="user@example.com"
+              />
+            </Field>
+
+            {/* Comms Group Code */}
+            <Field label="Comms Group Code">
+              <div className="relative">
+                <select
+                  value={form.commsgroupcode}
+                  onChange={(e) => set('commsgroupcode', e.target.value)}
+                  className="
+                    w-full appearance-none rounded-lg border border-[var(--border-card)]
+                    bg-[var(--input-bg)] text-[var(--text-main)] text-sm px-3 py-2 pr-8
+                    focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]/50
+                  "
+                >
+                  {!commsCodes.includes(form.commsgroupcode) && (
+                    <option value={form.commsgroupcode}>{form.commsgroupcode}</option>
+                  )}
+                  {commsCodes.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+              </div>
+            </Field>
+
+            <Field label="Location">
+              <div className="relative">
+                <select
+                  value={form.location}
+                  onChange={(e) => set('location', e.target.value as typeof form.location)}
+                  className="
+                    w-full appearance-none rounded-lg border border-[var(--border-card)]
+                    bg-[var(--input-bg)] text-[var(--text-main)] text-sm px-3 py-2 pr-8
+                    focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]/50
+                  "
+                >
+                  <option value="">Select location…</option>
+                  {LOCATIONS.map((loc) => (
+                    <option key={loc} value={loc}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+              </div>
+            </Field>
+
+            <Field label="Subgroup Prefix" hint="Up to 8 digits">
+              <Input
+                value={form.subgroupPrefix}
+                onChange={(v) => set('subgroupPrefix', v.replace(/\D/g, '').slice(0, 8))}
+                placeholder="e.g. 20261007"
+                maxLength={8}
+              />
+            </Field>
+
+            {/* Sub-branch: only for Kolkata */}
+            {form.location === 'Kolkata' && (
+              <Field label="Sub Branch">
+                <div className="relative">
+                  <select
+                    value={form.sub_branch}
+                    onChange={(e) => set('sub_branch', e.target.value as 'Senior' | 'Junior')}
+                    className="
+                      w-full appearance-none rounded-lg border border-[var(--border-card)]
+                      bg-[var(--input-bg)] text-[var(--text-main)] text-sm px-3 py-2 pr-8
+                      focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]/50
+                    "
+                  >
+                    <option value="">Select…</option>
+                    <option value="Senior">Senior</option>
+                    <option value="Junior">Junior</option>
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+                </div>
+              </Field>
+            )}
+
+            {/* Commodity: only for Gurgaon */}
+            {form.location === 'Gurgaon' && (
+              <Field label="Trades Commodities">
+                <label className="flex items-center gap-2 text-sm text-[var(--text-main)] cursor-pointer select-none mt-2">
+                  <input
+                    type="checkbox"
+                    checked={form.is_commodity}
+                    onChange={(e) => set('is_commodity', e.target.checked)}
+                    className="w-4 h-4 accent-[var(--accent-gold)]"
+                  />
+                  Yes — commodity account
+                </label>
+              </Field>
+            )}
+          </div>
+
+          {/* Live Auto-Derived Preview */}
+          <div className="rounded-xl border border-[var(--border-card)] bg-[var(--canvas-bg)] p-4 space-y-3">
+            <div className="flex items-center gap-2 text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+              {isPreviewing && <Loader2 className="w-3 h-3 animate-spin text-[var(--accent-gold)]" />}
+              Auto-derived fields (Live Recalculation)
+            </div>
+            {previewError && <p className="text-xs text-red-400">{previewError}</p>}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              <DerivedBadge label="Client Group" value={derived?.clientgroup ?? ''} />
+              <DerivedBadge label="Client Subgroup" value={derived?.clientsubgroup ?? ''} />
+              <DerivedBadge label="Distributor" value={derived?.distributor ?? ''} />
+              <DerivedBadge label="Clearer Acct ID" value={derived?.cleareraccountid ?? ''} />
+              <DerivedBadge label="Account ID" value={derived?.accountid ?? ''} />
+              <DerivedBadge label="Account Map" value={derived?.accountmap ?? ''} />
+              <DerivedBadge label="Country Code" value={derived?.clientcountrycode ?? 'IN'} />
+              <DerivedBadge label="Base Currency" value={derived?.basecurrency ?? 'USD'} />
+            </div>
+          </div>
+        </div>
+
+        {/* Modal Actions Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-[var(--border-card)] bg-[var(--canvas-bg)]/50 rounded-b-2xl">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-xl text-xs font-semibold border border-[var(--border-card)] text-[var(--text-muted)] hover:text-[var(--text-main)] transition cursor-pointer"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!isValid || isSaving}
+            className="
+              flex items-center gap-2 px-5 py-2 rounded-xl text-xs font-bold
+              bg-[var(--accent-gold)] text-black
+              disabled:opacity-40 disabled:cursor-not-allowed
+              hover:brightness-110 transition-all cursor-pointer shadow-md
+            "
+          >
+            {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+            Save Changes
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

@@ -45,8 +45,51 @@ venv/
 ENV/
 env/
 
+# SQLite temporary runtime files
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+
+# Node & Next.js build artifacts
+node_modules/
+frontend/node_modules/
+.next/
+frontend/.next/
+out/
+frontend/out/
+.vercel
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment and secrets
+.env
+.env*.local
+*.env
+*.env.*
+
+# Testing & Cache
+.pytest_cache/
+.coverage
+htmlcov/
+.turbo/
+
 # IDE / OS
 .vscode/
 .idea/
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Desktop.ini
+*.swp
+*.swo
+*~
+*.tmp

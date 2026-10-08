@@ -42,8 +42,11 @@ function broadcastSession(sessionId: string | null) {
   }
 }
 
+export type AppModule = 'home' | 'trade' | 'onboarding';
+
 interface TradeState {
   theme: 'dark' | 'light';
+  activeModule: AppModule;
   currentStep: number;
   isMobileDrawerOpen: boolean;
   isSidebarCollapsed: boolean;
@@ -95,6 +98,7 @@ interface TradeState {
   alert: { title: string; message: string } | null;
 
   // Actions
+  setActiveModule: (module: AppModule) => void;
   setTheme: (theme: 'dark' | 'light') => void;
   toggleTheme: () => void;
   setStep: (step: number) => void;
@@ -155,6 +159,7 @@ const STORAGE_KEY = 'axxela_trade_wizard_session';
 
 export const useTradeStore = create<TradeState>((set, get) => ({
   theme: 'dark',
+  activeModule: 'home',
   currentStep: 0,
   isMobileDrawerOpen: false,
   isSidebarCollapsed: false,
@@ -196,6 +201,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   loadingSteps: [],
   loadingProgress: 0,
   alert: null,
+
+  setActiveModule: (module) => set({ activeModule: module }),
 
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {

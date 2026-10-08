@@ -191,19 +191,28 @@ def upsert_broker_rule(
     prefix: str,
     distributor: str,
     clearer_template: str,
+    rule_id: Optional[int] = None,
 ) -> int:
     with _get_conn() as conn:
-        conn.execute(
-            "INSERT INTO broker_rules (prefix, distributor, clearer_template) VALUES (?,?,?) "
-            "ON CONFLICT(prefix) DO UPDATE SET distributor=excluded.distributor, "
-            "clearer_template=excluded.clearer_template",
-            (prefix.upper(), distributor, clearer_template),
-        )
-        conn.commit()
-        row = conn.execute(
-            "SELECT id FROM broker_rules WHERE prefix=?", (prefix.upper(),)
-        ).fetchone()
-        return row["id"]
+        if rule_id:
+            conn.execute(
+                "UPDATE broker_rules SET prefix=?, distributor=?, clearer_template=? WHERE id=?",
+                (prefix.upper(), distributor, clearer_template, rule_id),
+            )
+            conn.commit()
+            return rule_id
+        else:
+            conn.execute(
+                "INSERT INTO broker_rules (prefix, distributor, clearer_template) VALUES (?,?,?) "
+                "ON CONFLICT(prefix) DO UPDATE SET distributor=excluded.distributor, "
+                "clearer_template=excluded.clearer_template",
+                (prefix.upper(), distributor, clearer_template),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT id FROM broker_rules WHERE prefix=?", (prefix.upper(),)
+            ).fetchone()
+            return row["id"]
 
 
 def delete_broker_rule(rule_id: int) -> bool:
@@ -225,18 +234,30 @@ def list_subgroup_suffixes() -> list[dict]:
         return [dict(r) for r in rows]
 
 
-def upsert_subgroup_suffix(clientgroup: str, suffix: str) -> int:
+def upsert_subgroup_suffix(
+    clientgroup: str,
+    suffix: str,
+    rule_id: Optional[int] = None,
+) -> int:
     with _get_conn() as conn:
-        conn.execute(
-            "INSERT INTO clientsubgroup_suffixes (clientgroup, suffix) VALUES (?,?) "
-            "ON CONFLICT(clientgroup) DO UPDATE SET suffix=excluded.suffix",
-            (clientgroup, suffix),
-        )
-        conn.commit()
-        row = conn.execute(
-            "SELECT id FROM clientsubgroup_suffixes WHERE clientgroup=?", (clientgroup,)
-        ).fetchone()
-        return row["id"]
+        if rule_id:
+            conn.execute(
+                "UPDATE clientsubgroup_suffixes SET clientgroup=?, suffix=? WHERE id=?",
+                (clientgroup, suffix, rule_id),
+            )
+            conn.commit()
+            return rule_id
+        else:
+            conn.execute(
+                "INSERT INTO clientsubgroup_suffixes (clientgroup, suffix) VALUES (?,?) "
+                "ON CONFLICT(clientgroup) DO UPDATE SET suffix=excluded.suffix",
+                (clientgroup, suffix),
+            )
+            conn.commit()
+            row = conn.execute(
+                "SELECT id FROM clientsubgroup_suffixes WHERE clientgroup=?", (clientgroup,)
+            ).fetchone()
+            return row["id"]
 
 
 def delete_subgroup_suffix(rule_id: int) -> bool:

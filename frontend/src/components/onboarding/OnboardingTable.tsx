@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { OnboardingRow } from '@/types/onboarding.types';
-import { Trash2, Users } from 'lucide-react';
+import { Trash2, Users, Pencil } from 'lucide-react';
 
 interface Props {
   rows: OnboardingRow[];
   onRemove: (id: string) => void;
+  onEdit?: (row: OnboardingRow) => void;
 }
 
 const VISIBLE_COLS: { key: keyof OnboardingRow | `derived.${string}`; label: string }[] = [
@@ -32,7 +33,7 @@ function getCellValue(row: OnboardingRow, key: string): string {
   return String(val ?? '');
 }
 
-export function OnboardingTable({ rows, onRemove }: Props) {
+export function OnboardingTable({ rows, onRemove, onEdit }: Props) {
   if (!rows.length) {
     return (
       <div className="rounded-2xl border border-dashed border-[var(--border-card)] bg-[var(--card-bg)] py-12 flex flex-col items-center gap-3 text-[var(--text-muted)]">
@@ -59,7 +60,7 @@ export function OnboardingTable({ rows, onRemove }: Props) {
                   {c.label}
                 </th>
               ))}
-              <th className="px-3 py-2 w-10" />
+              <th className="px-3 py-2 w-16" />
             </tr>
           </thead>
           <tbody>
@@ -87,13 +88,24 @@ export function OnboardingTable({ rows, onRemove }: Props) {
                   );
                 })}
                 <td className="px-3 py-2">
-                  <button
-                    onClick={() => onRemove(row.id)}
-                    className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors"
-                    title="Remove row"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  <div className="flex items-center gap-1 justify-end">
+                    {onEdit && (
+                      <button
+                        onClick={() => onEdit(row)}
+                        className="p-1.5 rounded-lg hover:bg-[var(--accent-gold)]/10 text-[var(--text-muted)] hover:text-[var(--accent-gold)] transition-colors cursor-pointer"
+                        title="Edit record"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                    <button
+                      onClick={() => onRemove(row.id)}
+                      className="p-1.5 rounded-lg hover:bg-red-500/10 text-[var(--text-muted)] hover:text-red-400 transition-colors cursor-pointer"
+                      title="Remove record"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

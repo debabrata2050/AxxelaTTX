@@ -5,6 +5,15 @@ import { ConsoleBanner } from '@/components/ConsoleBanner';
 export const metadata: Metadata = {
   title: 'Axxela TTX | Trade Transfer',
   description: 'Institutional Multi-Account Position Transfer & Excel Converter',
+  icons: {
+    icon: [
+      { url: '/icon.svg', type: 'image/svg+xml' },
+      { url: '/favicon.ico' },
+      { url: '/icon.png', sizes: '256x256', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
@@ -15,6 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark h-full" data-theme="dark" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="alternate icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Anti-Flicker Pre-Paint Theme Initialization */}
         <script
           dangerouslySetInnerHTML={{

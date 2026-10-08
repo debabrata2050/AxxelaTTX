@@ -492,3 +492,59 @@ input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* ==========================================================================
+   AMBIENT FLOATING FINANCIAL PARTICLES & FX
+   ========================================================================== */
+@keyframes floatSlow {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(8px, -18px, 0) rotate(3deg);
+  }
+  50% {
+    transform: translate3d(-10px, -32px, 0) rotate(-2deg);
+  }
+  75% {
+    transform: translate3d(-16px, -12px, 0) rotate(2deg);
+  }
+}
+
+@keyframes floatReverse {
+  0%, 100% {
+    transform: translate3d(0, 0, 0) rotate(0deg);
+  }
+  25% {
+    transform: translate3d(-12px, -24px, 0) rotate(-3deg);
+  }
+  50% {
+    transform: translate3d(14px, -36px, 0) rotate(2deg);
+  }
+  75% {
+    transform: translate3d(8px, -14px, 0) rotate(-1deg);
+  }
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 0.08;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.16;
+    transform: scale(1.05);
+  }
+}
+
+.animate-float-slow {
+  animation: floatSlow 20s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-float-medium {
+  animation: floatReverse 15s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.animate-float-fast {
+  animation: floatSlow 11s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}

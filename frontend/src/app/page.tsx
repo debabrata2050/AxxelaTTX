@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
+import { useOnboardingStore } from '@/store/useOnboardingStore';
 import { apiClient } from '@/lib/apiClient';
 import { Header } from '@/components/layout/Header';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -9,7 +10,8 @@ import { MobileDrawer } from '@/components/layout/MobileDrawer';
 import { BasketBar } from '@/components/layout/BasketBar';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { FileSwitchModal } from '@/components/ui/FileSwitchModal';
-import { OnboardingTab } from '@/components/onboarding/OnboardingTab';
+import { FeatureHub } from '@/components/home/FeatureHub';
+import { OnboardingTab, RulesModal } from '@/components/onboarding/OnboardingTab';
 
 import { Step0FileSelect } from '@/components/steps/Step0FileSelect';
 import { Step1RouteMap } from '@/components/steps/Step1RouteMap';
@@ -18,10 +20,10 @@ import { Step3Allocations } from '@/components/steps/Step3Allocations';
 import { Step4PreviewExport } from '@/components/steps/Step4PreviewExport';
 import { Loader2, CheckCircle2, Circle, XCircle, AlertTriangle, Info } from 'lucide-react';
 
-type AppMode = 'trade' | 'onboarding';
-
 export default function WizardPage() {
   const {
+    activeModule,
+    setActiveModule,
     currentStep,
     setStep,
     resetSession,
@@ -40,9 +42,12 @@ export default function WizardPage() {
     hideAlert,
   } = useTradeStore();
 
+  const { clearAll: clearOnboardingAll } = useOnboardingStore();
+
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [showOnboardingResetConfirm, setShowOnboardingResetConfirm] = useState(false);
   const [isFileSwitchModalOpen, setIsFileSwitchModalOpen] = useState(false);
-  const [appMode, setAppMode] = useState<AppMode>('trade');
+  const [showRulesModal, setShowRulesModal] = useState(false);
   const [reconnectCandidate, setReconnectCandidate] = useState<any | null>(null);
 
   useEffect(() => {
@@ -80,21 +85,33 @@ export default function WizardPage() {
       recordCount: reconnectCandidate.total_rows || 0,
       sessionId: reconnectCandidate.session_id,
     });
+    setActiveModule('trade');
     setReconnectCandidate(null);
   };
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--canvas-bg)]">
-      {/* Sidebar for Desktop / Tablet — only in trade mode */}
-      {appMode === 'trade' && <Sidebar onResetConfirm={() => setShowResetConfirm(true)} />}
+      {/* ── Persistent Unified Sidebar (Desktop / Tablet) ── */}
+      <Sidebar
+        onResetConfirm={() => setShowResetConfirm(true)}
+        onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
+        onOpenRulesModal={() => setShowRulesModal(true)}
+      />
 
-      {/* Mobile Drawer — only in trade mode */}
-      {appMode === 'trade' && <MobileDrawer onResetConfirm={() => setShowResetConfirm(true)} />}
+      {/* ── Mobile Drawer (Mobile viewports) ── */}
+      <MobileDrawer
+        onResetConfirm={() => setShowResetConfirm(true)}
+        onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
+        onOpenRulesModal={() => setShowRulesModal(true)}
+      />
 
-      {/* Main Workspace */}
+      {/* ── Main Workspace ── */}
       <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden bg-[var(--canvas-bg)]">
-        {/* Header */}
-        <Header onOpenFileModal={() => setIsFileSwitchModalOpen(true)} />
+        {/* Header with Feature Switcher & Contextual Actions */}
+        <Header
+          onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
+          onOpenRulesModal={() => setShowRulesModal(true)}
+        />
 
         {/* Session Status Alerts & Banners */}
         {sessionMismatch && (
@@ -164,44 +181,20 @@ export default function WizardPage() {
           </div>
         )}
 
-        {/* Mode toggle tab bar */}
-        <div className="flex items-center justify-between px-4 sm:px-6 pt-3 border-b border-[var(--border-card)] bg-[var(--canvas-bg)]">
-          <div className="flex items-center gap-1">
-            {(
-              [
-                { id: 'trade',      label: 'Trade Transfer' },
-                { id: 'onboarding', label: 'People Onboarding' },
-              ] as { id: AppMode; label: string }[]
-            ).map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setAppMode(m.id)}
-                className={`
-                  px-4 py-2 text-xs font-semibold rounded-t-lg transition-colors border-b-2 -mb-px
-                  ${appMode === m.id
-                    ? 'border-[var(--accent-gold)] text-[var(--accent-gold)]'
-                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)]'}
-                `}
-              >
-                {m.label}
-              </button>
-            ))}
-          </div>
-
-          {appMode === 'onboarding' && currentStep > 0 && (
-            <div className="flex items-center gap-1.5 text-[11px] text-[var(--accent-gold)] bg-[var(--accent-gold)]/10 border border-[var(--accent-gold)]/20 px-2.5 py-1 rounded-full font-mono mb-1">
-              <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-gold)] animate-pulse" />
-              <span>Trade Session Paused (Step {currentStep})</span>
-            </div>
-          )}
-        </div>
-
-        {/* Content Area */}
+        {/* ── Content Area ── */}
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
-            {appMode === 'onboarding' ? (
-              <OnboardingTab />
-            ) : (
+            {/* View 1: Home Feature Hub */}
+            {activeModule === 'home' && (
+              <FeatureHub
+                onSelectMode={(mode) => setActiveModule(mode)}
+                onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
+                onOpenRules={() => setShowRulesModal(true)}
+              />
+            )}
+
+            {/* View 2: Trade Transfer 5-Step Pipeline */}
+            {activeModule === 'trade' && (
               <div key={currentStep} className="step-view-enter space-y-6">
                 {currentStep === 0 && <Step0FileSelect />}
                 {currentStep === 1 && <Step1RouteMap />}
@@ -210,14 +203,21 @@ export default function WizardPage() {
                 {currentStep === 4 && <Step4PreviewExport />}
               </div>
             )}
+
+            {/* View 3: People Onboarding Portal */}
+            {activeModule === 'onboarding' && (
+              <div className="step-view-enter">
+                <OnboardingTab />
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Sticky Status Basket Bar — only in trade mode */}
-        {appMode === 'trade' && <BasketBar />}
+        {/* Sticky Status Basket Bar — only in trade mode during active steps */}
+        {activeModule === 'trade' && currentStep > 0 && <BasketBar />}
       </main>
 
-      {/* Global Loading Overlay with Step-by-Step Progress */}
+      {/* ── Global Loading Overlay with Step Progress ── */}
       {isLoading && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
           {loadingSteps && loadingSteps.length > 0 ? (
@@ -309,7 +309,7 @@ export default function WizardPage() {
         </div>
       )}
 
-      {/* Global Alert Modal */}
+      {/* ── Global Alert Modal ── */}
       <ConfirmModal
         isOpen={alert !== null}
         title={alert?.title || 'Notice'}
@@ -321,7 +321,7 @@ export default function WizardPage() {
         onCancel={hideAlert}
       />
 
-      {/* Reset Confirmation Modal */}
+      {/* ── Reset Confirmation Modal ── */}
       <ConfirmModal
         isOpen={showResetConfirm}
         title="Reset Current Session?"
@@ -336,11 +336,31 @@ export default function WizardPage() {
         onCancel={() => setShowResetConfirm(false)}
       />
 
-      {/* File Switcher Modal */}
+      {/* ── Onboarding Reset Confirmation Modal ── */}
+      <ConfirmModal
+        isOpen={showOnboardingResetConfirm}
+        title="Reset Onboarding Session?"
+        message="This will discard all drafted person records from memory."
+        confirmLabel="Reset Everything"
+        cancelLabel="Cancel"
+        isDestructive={true}
+        onConfirm={() => {
+          setShowOnboardingResetConfirm(false);
+          clearOnboardingAll();
+        }}
+        onCancel={() => setShowOnboardingResetConfirm(false)}
+      />
+
+      {/* ── File Switcher Modal ── */}
       <FileSwitchModal
         isOpen={isFileSwitchModalOpen}
         onClose={() => setIsFileSwitchModalOpen(false)}
       />
+
+      {/* ── Global Rules Modal (for Onboarding & Hub) ── */}
+      {showRulesModal && (
+        <RulesModal onClose={() => setShowRulesModal(false)} />
+      )}
     </div>
   );
 }

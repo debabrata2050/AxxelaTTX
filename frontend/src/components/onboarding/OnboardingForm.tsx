@@ -2,7 +2,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { OnboardingUserInput, OnboardingDerived, EMPTY_USER_INPUT } from '@/types/onboarding.types';
-import { previewDerived } from '@/store/useOnboardingStore';
+import { useOnboardingStore, previewDerived } from '@/store/useOnboardingStore';
 import { Loader2, UserPlus, ChevronDown } from 'lucide-react';
 
 interface Props {
@@ -107,6 +107,7 @@ function DerivedBadge({ label, value }: { label: string; value: string }) {
 }
 
 export function OnboardingForm({ onAdd }: Props) {
+  const { commsCodes } = useOnboardingStore();
   const [form, setForm] = useState<OnboardingUserInput>(EMPTY_USER_INPUT);
   const [derived, setDerived] = useState<OnboardingDerived | null>(null);
   const [isPreviewing, setIsPreviewing] = useState(false);
@@ -206,11 +207,27 @@ export function OnboardingForm({ onAdd }: Props) {
         </Field>
 
         <Field label="Comms Group Code">
-          <Select
-            value={form.commsgroupcode}
-            onChange={(v) => set('commsgroupcode', v as 'CWSYM' | 'ALGO')}
-            options={['CWSYM', 'ALGO']}
-          />
+          <div className="relative">
+            <select
+              value={form.commsgroupcode}
+              onChange={(e) => set('commsgroupcode', e.target.value)}
+              className="
+                w-full appearance-none rounded-lg border border-[var(--border-card)]
+                bg-[var(--input-bg)] text-[var(--text-main)] text-sm px-3 py-2 pr-8
+                focus:outline-none focus:ring-2 focus:ring-[var(--accent-gold)]/50
+              "
+            >
+              {!commsCodes.includes(form.commsgroupcode) && (
+                <option value={form.commsgroupcode}>{form.commsgroupcode}</option>
+              )}
+              {commsCodes.map((code) => (
+                <option key={code} value={code}>
+                  {code}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-muted)] pointer-events-none" />
+          </div>
         </Field>
 
         <Field label="Location">

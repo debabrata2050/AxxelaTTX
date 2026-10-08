@@ -1,10 +1,11 @@
-// ─── User-entered fields (form inputs) ───────────────────────────────────────
+export const DEFAULT_COMMS_CODES = ['CWSYM', 'ALGO'] as const;
+
 export interface OnboardingUserInput {
   firstname: string;
   lastname: string;
   clientid: string;           // max 13 chars; drives accountid, accountmap
   email: string;              // drives emailaddress, useremail
-  commsgroupcode: 'CWSYM' | 'ALGO';
+  commsgroupcode: string;     // e.g. CWSYM, ALGO, or custom code
   location: 'Kolkata' | 'Gurgaon' | 'Bengaluru' | 'Mumbai' | '';
   sub_branch: 'Senior' | 'Junior' | '';   // only when location = Kolkata
   is_commodity: boolean;                  // only when location = Gurgaon
