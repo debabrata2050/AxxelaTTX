@@ -114,7 +114,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div
             onClick={() => setActiveModule('home')}
             className="mx-auto w-8 h-8 flex items-center justify-center cursor-pointer"
-            title="Return to Home Hub"
+            title="Return to Home"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.svg" alt="Axxela Logo" className="w-7 h-7 object-contain" />
@@ -143,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         {(
           [
-            { id: 'home', label: 'Home Hub', icon: Home, badge: null },
+            { id: 'home', label: 'Home', icon: Home, badge: null },
             {
               id: 'trade',
               label: 'Trade Transfer',

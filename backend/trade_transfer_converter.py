@@ -26,7 +26,7 @@ def convert_trade_transfer(
     output_xlsx_path: str = None
 ) -> str:
     # 1. Read & Validate CSV Headers
-    df, meta = CsvTradeReader.read_and_validate(input_csv_path)
+    store, meta = CsvTradeReader.read_and_validate(input_csv_path)
 
     existing_accounts = meta["unique_accounts"]
     from_acc_list = [a.strip() for a in from_account.split(",") if a.strip()] if from_account else []
@@ -58,42 +58,44 @@ def convert_trade_transfer(
             f"Account mismatch: {len(validated_from)} source accounts provided, but {len(to_acc_list)} destination accounts."
         )
 
-    # Filter rows & construct allocations
+    # Filter rows & construct allocations via DuckStore
+    src_to_dst = dict(zip([a.upper() for a in validated_from], to_acc_list))
+    trades = store.get_trades(accounts=validated_from, product=filter_product or "ALL")
+
+    if filter_contract:
+        c_term = filter_contract.strip().upper()
+        trades = [
+            t for t in trades
+            if c_term in (t.get("contractcode") or "").upper() or
+               c_term in (t.get("contractfullname") or "").upper() or
+               c_term in (t.get("contractdescription") or "").upper()
+        ]
+
     allocations = []
-    row_id_map = {str(r["__row_id__"]): r.to_dict() for _, r in df.iterrows()}
-
-    for src_acc, dst_acc in zip(validated_from, to_acc_list):
-        sub_df = df[df["__account__"].str.upper() == src_acc.upper()].copy()
-
-        if filter_product:
-            if "sectyp" in sub_df.columns:
-                sub_df = sub_df[sub_df["sectyp"].fillna("").str.strip().str.upper() == filter_product.strip().upper()]
-
-        if filter_contract:
-            c_term = filter_contract.strip().upper()
-            c_mask = sub_df["contractcode"].fillna("").str.strip().str.upper().str.contains(c_term, regex=False)
-            if "contractfullname" in sub_df.columns:
-                c_mask |= sub_df["contractfullname"].fillna("").str.strip().str.upper().str.contains(c_term, regex=False)
-            if "contractdescription" in sub_df.columns:
-                c_mask |= sub_df["contractdescription"].fillna("").str.strip().str.upper().str.contains(c_term, regex=False)
-            sub_df = sub_df[c_mask]
-
-        for _, row in sub_df.iterrows():
-            rid = str(row["__row_id__"])
-            try:
-                qty_val = float(row.get("qtybalance", 0))
-            except ValueError:
-                qty_val = 0
-            if qty_val > 0:
-                allocations.append(TradeAllocation(
-                    row_id=rid,
-                    from_account=src_acc,
-                    to_account=dst_acc,
-                    transfer_qty=qty_val
-                ))
+    row_ids = []
+    for t in trades:
+        src_acc = str(t.get("account", "")).upper()
+        dst_acc = src_to_dst.get(src_acc)
+        if not dst_acc:
+            continue
+        try:
+            qty_val = float(t.get("qtybalance", 0) or 0)
+        except (ValueError, TypeError):
+            qty_val = 0
+        if qty_val > 0:
+            rid = str(t["row_id"])
+            row_ids.append(rid)
+            allocations.append(TradeAllocation(
+                row_id=rid,
+                from_account=t.get("account"),
+                to_account=dst_acc,
+                transfer_qty=qty_val
+            ))
 
     if not allocations:
         raise ValueError("No trades found matching transfer criteria.")
+
+    row_id_map = store.get_rows_by_ids(row_ids)
 
     # Price Strategy
     price_strategy = get_price_strategy(mode=price_mode, global_manual_price=manual_price)

@@ -31,7 +31,9 @@ export const Step3Allocations: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const loadTrades = async () => {
-      setIsLoading(true);
+      if (useTradeStore.getState().trades.length === 0) {
+        setIsLoading(true);
+      }
       try {
         const accounts = routes.map((r) => r.from);
         const data = await apiClient.getTrades(
@@ -97,6 +99,19 @@ export const Step3Allocations: React.FC = () => {
     if (senderTab === 'ALL') return trades;
     return trades.filter((t) => String(t.account || '').toUpperCase() === senderTab.toUpperCase());
   }, [trades, senderTab]);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [senderTab]);
+
+  const totalPages = Math.max(1, Math.ceil(visibleTrades.length / pageSize));
+  const paginatedTrades = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return visibleTrades.slice(start, start + pageSize);
+  }, [visibleTrades, currentPage, pageSize]);
 
   const allChecked = useMemo(() => {
     if (visibleTrades.length === 0) return false;
@@ -478,7 +493,7 @@ export const Step3Allocations: React.FC = () => {
                   </td>
                 </tr>
               ) : (
-                visibleTrades.map((t) => {
+                paginatedTrades.map((t) => {
                   const accStr =
                     typeof t.account === 'object' && t.account !== null
                       ? String((t.account as any).account || '')
@@ -662,15 +677,41 @@ export const Step3Allocations: React.FC = () => {
           </table>
         </div>
 
-        {/* Table Footer Totals */}
-        <div className="flex justify-between items-center text-xs font-mono text-[var(--text-muted)] px-1">
-          <div>
-            Active Trades: <strong className="text-[var(--text-main)]">{totalActiveTrades}</strong>
+        {/* Table Footer Totals & Pagination */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-mono text-[var(--text-muted)] px-1 pt-1">
+          <div className="flex items-center gap-4">
+            <div>
+              Active Trades: <strong className="text-[var(--text-main)]">{totalActiveTrades}</strong> of {visibleTrades.length}
+            </div>
+            <div>
+              Transfer Lots Total:{' '}
+              <strong className="text-[var(--accent-gold)] font-bold">{totalLots.toLocaleString()} Lots</strong>
+            </div>
           </div>
-          <div>
-            Transfer Lots Total:{' '}
-            <strong className="text-[var(--accent-gold)] font-bold">{totalLots} Lots</strong>
-          </div>
+
+          {visibleTrades.length > pageSize && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-gold)]/10"
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-gold)]/10"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

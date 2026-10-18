@@ -9,7 +9,7 @@ updated at runtime without touching this file.
 
 import os
 import tempfile
-from typing import Optional
+from typing import Optional, Any
 
 import openpyxl
 from openpyxl.styles import Font, Alignment, Border, Side
@@ -238,6 +238,17 @@ _THIN_BORDER = Border(
 _COL_A_LABELS = ["Required YN", "Collection", "Field Name"]
 
 
+def _sanitize_cell(val: Any) -> Any:
+    """Neutralize potential spreadsheet formula injection (=, +, -, @)."""
+    if isinstance(val, str) and val.startswith(("=", "+", "-", "@")):
+        try:
+            float(val)
+            return val
+        except ValueError:
+            return "'" + val
+    return val
+
+
 def build_onboarding_excel(rows: list[dict]) -> str:
     """
     Builds an .xlsx file matching the Sample of All template:
@@ -278,8 +289,8 @@ def build_onboarding_excel(rows: list[dict]) -> str:
     # ── Data rows ────────────────────────────────────────────────────────────
     for row_dict in rows:
         full_row = build_row(row_dict)
-        # Col A blank, then data columns
-        row_values = [""] + [full_row.get(col, "") for col in COLUMN_ORDER]
+        # Col A blank, then data columns with formula injection sanitization
+        row_values = [""] + [_sanitize_cell(full_row.get(col, "")) for col in COLUMN_ORDER]
         ws.append(row_values)
 
         r_idx = ws.max_row

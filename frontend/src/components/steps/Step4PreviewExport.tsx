@@ -43,6 +43,22 @@ export const Step4PreviewExport: React.FC = () => {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showExportSuccessModal, setShowExportSuccessModal] = useState(false);
 
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 50;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [previewRows.length, outputMode]);
+
+  const totalPages = Math.max(1, Math.ceil(previewRows.length / pageSize));
+  const paginatedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return previewRows.slice(start, start + pageSize).map((row, idx) => ({
+      globalIndex: start + idx,
+      row,
+    }));
+  }, [previewRows, currentPage, pageSize]);
+
   // Generate clean descriptive filename if not set
   const autoFilename = useMemo(() => {
     const dateStr = defaultDate
@@ -315,7 +331,7 @@ export const Step4PreviewExport: React.FC = () => {
             </thead>
 
             <tbody>
-              {previewRows.map((row, rIdx) => {
+              {paginatedRows.map(({ globalIndex: rIdx, row }) => {
                 const isSeparator = row.every((c) => c === null || c === '' || c === undefined);
 
                 if (isSeparator) {
@@ -371,6 +387,39 @@ export const Step4PreviewExport: React.FC = () => {
               })}
             </tbody>
           </table>
+        </div>
+
+        {/* Table Footer Totals & Pagination */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-mono text-[var(--text-muted)] px-1 pt-1">
+          <div>
+            Showing <strong className="text-[var(--text-main)]">{previewRows.length === 0 ? 0 : (currentPage - 1) * pageSize + 1}</strong> to{' '}
+            <strong className="text-[var(--text-main)]">{Math.min(previewRows.length, currentPage * pageSize)}</strong> of{' '}
+            <strong className="text-[var(--accent-gold)]">{previewRows.length} rows</strong>
+          </div>
+
+          {previewRows.length > pageSize && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-[var(--text-muted)]">
+                Page {currentPage} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-2.5 py-1 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-gold)]/10 cursor-pointer"
+              >
+                Prev
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-2.5 py-1 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-main)] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-gold)]/10 cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Filename & Bottom Action Bar */}

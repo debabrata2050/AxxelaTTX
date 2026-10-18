@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import {
+  AccountItem,
   ContractItem,
   PriceMode,
   ProductType,
@@ -14,15 +15,9 @@ const TAB_ID = typeof window !== 'undefined' ? Math.random().toString(36).slice(
 if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
   try {
     sessionChannel = new BroadcastChannel('trade_session');
-    sessionChannel.onmessage = (event) => {
-      const data = event.data;
-      if (data && data.tabId !== TAB_ID) {
-        const currentSession = useTradeStore.getState().sessionId;
-        if (currentSession && data.sessionId && data.sessionId !== currentSession) {
-          useTradeStore.getState().setMultiTabConflict(true);
-        }
-      }
-    };
+    // Multi-session isolation in backend SessionManager supports concurrent tabs.
+    // BroadcastChannel retained for cross-tab telemetry without false-positive conflict alerts.
+    sessionChannel.onmessage = () => {};
   } catch (e) {
     console.warn('BroadcastChannel error', e);
   }
@@ -112,7 +107,7 @@ interface TradeState {
     filename: string;
     clientGroup?: string;
     date?: string;
-    accounts?: string[];
+    accounts?: (string | AccountItem)[];
     recordCount?: number;
     sessionId?: string;
   }) => void;
@@ -193,7 +188,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   previewRows: [],
   previewSummary: null,
   exportFilename: '',
-  outputMode: 'paired',
+  outputMode: 'batched',
 
   isLoading: false,
   loadingTitle: '',
@@ -202,7 +197,20 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   loadingProgress: 0,
   alert: null,
 
-  setActiveModule: (module) => set({ activeModule: module }),
+  setActiveModule: (module) => {
+    set({ activeModule: module });
+    if (typeof window !== 'undefined') {
+      const targetPath =
+        module === 'trade'
+          ? '/trade-transfer'
+          : module === 'onboarding'
+          ? '/people-onboard'
+          : '/';
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ module }, '', targetPath);
+      }
+    }
+  },
 
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {
@@ -242,8 +250,14 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   setActiveFile: ({ filePath, filename, clientGroup, date, accounts, recordCount, sessionId }) => {
     const sId = sessionId || null;
     if (typeof window !== 'undefined') {
-      if (sId) localStorage.setItem('trade_session_id', sId);
-      if (filePath) localStorage.setItem('trade_file_path', filePath);
+      if (sId) {
+        sessionStorage.setItem('trade_session_id', sId);
+        localStorage.setItem('trade_last_session_id', sId);
+      }
+      if (filePath) {
+        sessionStorage.setItem('trade_file_path', filePath);
+        localStorage.setItem('trade_last_file_path', filePath);
+      }
     }
     broadcastSession(sId);
     set({
@@ -265,7 +279,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       previewRows: [],
       previewSummary: null,
       exportFilename: '',
-      outputMode: 'paired',
+      outputMode: 'batched',
     });
   },
 
@@ -550,10 +564,18 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   hideAlert: () => set({ alert: null }),
 
   resetSession: () => {
-    fetch('/api/unload-file', { method: 'POST' }).catch(() => {});
+    const sid = get().sessionId;
+    fetch('/api/unload-file', {
+      method: 'POST',
+      headers: sid ? { 'X-Session-Id': sid } : {},
+    }).catch(() => {});
     if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('trade_session_id');
+      sessionStorage.removeItem('trade_file_path');
       localStorage.removeItem('trade_session_id');
       localStorage.removeItem('trade_file_path');
+      localStorage.removeItem('trade_last_session_id');
+      localStorage.removeItem('trade_last_file_path');
     }
     set({
       sessionId: null,
@@ -581,7 +603,7 @@ export const useTradeStore = create<TradeState>((set, get) => ({
       previewRows: [],
       previewSummary: null,
       exportFilename: '',
-      outputMode: 'paired',
+      outputMode: 'batched',
       loadingSteps: [],
       loadingProgress: 0,
       alert: null,

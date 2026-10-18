@@ -140,7 +140,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           {(
             [
-              { id: 'home', label: 'Home Hub', icon: Home, badge: null },
+              { id: 'home', label: 'Home', icon: Home, badge: null },
               {
                 id: 'trade',
                 label: 'Trade Transfer',

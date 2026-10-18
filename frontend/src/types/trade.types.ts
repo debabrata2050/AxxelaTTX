@@ -87,3 +87,35 @@ export interface LoadingStepItem {
   label: string;
   status: 'pending' | 'in_progress' | 'completed' | 'error';
 }
+
+export interface WorkspaceStatusResponse {
+  loaded: boolean;
+  session_id: string | null;
+  current_file: string | null;
+  filename: string | null;
+  total_rows: number;
+  total_records?: number;
+  total_accounts: number;
+  client_group: string;
+  default_date: string | null;
+  products: string[];
+  accounts?: (AccountItem | string)[];
+  available_files: WorkspaceFile[];
+  backend: 'duckdb' | 'none';
+}
+
+export interface SelectFileResponse {
+  success: boolean;
+  session_id: string;
+  filename: string;
+  filepath: string;
+  total_rows: number;
+  total_records: number;
+  total_accounts: number;
+  client_group: string;
+  default_date: string | null;
+  products: string[];
+  accounts: (AccountItem | string)[];
+  backend: 'duckdb';
+  error?: string;
+}

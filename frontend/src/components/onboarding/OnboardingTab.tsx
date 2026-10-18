@@ -550,7 +550,7 @@ function RulesTable({
    ────────────────────────────────────────────────────────────────────────────── */
 
 export function OnboardingTab() {
-  const { rows, addRow, updateRow, removeRow, clearAll, exportExcel, isExporting, exportError } =
+  const { rows, addRow, addRows, updateRow, removeRow, clearAll, exportExcel, isExporting, exportError } =
     useOnboardingStore();
   const [showConfig, setShowConfig] = useState(false);
   const [editingRow, setEditingRow] = useState<OnboardingRow | null>(null);
@@ -561,7 +561,7 @@ export function OnboardingTab() {
   };
 
   const handleBatchAdd = (items: Array<{ input: OnboardingUserInput; derived: OnboardingDerived }>) => {
-    items.forEach((item) => addRow(item.input, item.derived));
+    addRows(items);
   };
 
   return (

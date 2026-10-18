@@ -17,6 +17,7 @@ interface OnboardingState {
   exportError: string | null;
 
   addRow: (input: OnboardingUserInput, derived: OnboardingDerived) => void;
+  addRows: (items: Array<{ input: OnboardingUserInput; derived: OnboardingDerived }>) => void;
   updateRow: (id: string, input: OnboardingUserInput, derived: OnboardingDerived) => void;
   removeRow: (id: string) => void;
   clearAll: () => void;
@@ -35,6 +36,16 @@ export const useOnboardingStore = create<OnboardingState>((set, get) => ({
   addRow(input, derived) {
     const row: OnboardingRow = { ...input, id: genId(), derived };
     set((s) => ({ rows: [...s.rows, row] }));
+  },
+
+  addRows(items) {
+    if (!items.length) return;
+    const newRows: OnboardingRow[] = items.map((item) => ({
+      ...item.input,
+      id: genId(),
+      derived: item.derived,
+    }));
+    set((s) => ({ rows: [...s.rows, ...newRows] }));
   },
 
   updateRow(id, input, derived) {

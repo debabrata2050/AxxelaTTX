@@ -2,25 +2,31 @@ import os
 from flask import Blueprint, request, jsonify
 from werkzeug.utils import secure_filename
 
-from services.trade_service import trade_service
+from services.trade_service import TradeService, trade_service
+from services.session_manager import session_manager
+from api.session_guard import get_current_service
 
 file_bp = Blueprint("file_bp", __name__)
 
 
 @file_bp.route("/api/status", methods=["GET"])
 def get_status():
-    return jsonify(trade_service.get_status())
+    svc = get_current_service()
+    return jsonify(svc.get_status())
 
 
 @file_bp.route("/api/unload-file", methods=["POST"])
 def unload_file():
+    req_session_id = request.headers.get("X-Session-Id")
+    if req_session_id:
+        session_manager.remove_session(req_session_id)
     trade_service.reset()
     return jsonify({"success": True})
 
 
 @file_bp.route("/api/files", methods=["GET"])
 def list_files():
-    files = trade_service.scan_workspace_csvs()
+    files = TradeService.scan_workspace_csvs()
     return jsonify({"files": files})
 
 
@@ -31,9 +37,32 @@ def select_file():
     if not file_path:
         return jsonify({"success": False, "error": "file_path is required"}), 400
 
+    req_session_id = request.headers.get("X-Session-Id")
+
     try:
-        res = trade_service.load_file(file_path)
-        return jsonify(res)
+        service, sid = session_manager.create_session(file_path=file_path, session_id=req_session_id)
+        # Also sync fallback singleton
+        try:
+            trade_service.load_file(file_path)
+            trade_service.session_id = sid
+        except Exception:
+            pass
+
+        meta = service.metadata
+        return jsonify({
+            "success": True,
+            "session_id": sid,
+            "filename": meta.get("filename"),
+            "filepath": file_path,
+            "total_rows": meta.get("total_rows", 0),
+            "total_records": meta.get("total_rows", 0),
+            "total_accounts": len(meta.get("accounts_summary", [])),
+            "client_group": meta.get("client_group", "SYM"),
+            "default_date": meta.get("default_date"),
+            "products": meta.get("products", []),
+            "accounts": meta.get("accounts_summary", []),
+            "backend": "duckdb",
+        })
     except FileNotFoundError as fnf:
         return jsonify({"success": False, "error": str(fnf)}), 410
     except Exception as e:
@@ -47,8 +76,9 @@ def delete_file():
     if not file_path:
         return jsonify({"success": False, "error": "file_path is required"}), 400
 
+    svc = get_current_service()
     try:
-        trade_service.delete_file(file_path)
+        svc.delete_file(file_path)
         return jsonify({"success": True, "message": "File deleted successfully"})
     except FileNotFoundError:
         return jsonify({"success": False, "error": "File not found."}), 404
@@ -75,26 +105,44 @@ def upload_file():
     upload_dir = os.path.join(base_dir, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
 
-    # Use unique prefix to prevent Windows file locking / overwrite collisions
     from datetime import datetime
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     target_filename = f"{timestamp}_{raw_filename}"
     target_path = os.path.join(upload_dir, target_filename)
 
+    req_session_id = request.headers.get("X-Session-Id")
+
     try:
         uploaded.save(target_path)
-        res = trade_service.load_file(target_path)
-        # Display the friendly original filename
-        res["filename"] = raw_filename
-        res["filepath"] = target_path
-        return jsonify(res)
+        service, sid = session_manager.create_session(file_path=target_path, session_id=req_session_id)
+        # Also sync fallback singleton
+        try:
+            trade_service.load_file(target_path)
+            trade_service.session_id = sid
+        except Exception:
+            pass
+
+        meta = service.metadata
+        return jsonify({
+            "success": True,
+            "session_id": sid,
+            "filename": raw_filename,
+            "filepath": target_path,
+            "total_rows": meta.get("total_rows", 0),
+            "total_records": meta.get("total_rows", 0),
+            "total_accounts": len(meta.get("accounts_summary", [])),
+            "client_group": meta.get("client_group", "SYM"),
+            "default_date": meta.get("default_date"),
+            "products": meta.get("products", []),
+            "accounts": meta.get("accounts_summary", []),
+            "backend": "duckdb",
+        })
     except PermissionError as pe:
         return jsonify({
             "success": False,
             "error": f"Permission denied while saving upload: {pe}. Try selecting the file from 'Available CSV Files In Workspace' below."
         }), 400
     except Exception as e:
-        # Clean up failed upload file if empty/corrupted
         if os.path.exists(target_path):
             try:
                 os.remove(target_path)

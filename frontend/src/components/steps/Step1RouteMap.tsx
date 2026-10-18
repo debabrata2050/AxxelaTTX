@@ -21,7 +21,9 @@ export const Step1RouteMap: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const fetchAccounts = async () => {
-      setIsLoadingAccounts(true);
+      if (availableAccounts.length === 0) {
+        setIsLoadingAccounts(true);
+      }
       try {
         const res = await apiClient.getAccounts('');
         if (isMounted && res.accounts) {

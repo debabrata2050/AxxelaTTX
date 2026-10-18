@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 import { ArrowLeftRight, Users, ArrowUpRight } from 'lucide-react';
@@ -17,24 +17,6 @@ export const FeatureHub: React.FC<FeatureHubProps> = ({ onSelectMode }) => {
 
   const hasActiveTradeSession = Boolean(activeFilePath || activeFilename);
   const onboardingCount = rows.length;
-
-  // Keyboard shortcut navigation (1 for Trade, 2 for Onboarding)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-
-      if (e.key === '1' || e.key.toLowerCase() === 't') {
-        e.preventDefault();
-        onSelectMode('trade');
-      } else if (e.key === '2' || e.key.toLowerCase() === 'p') {
-        e.preventDefault();
-        onSelectMode('onboarding');
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSelectMode]);
 
   return (
     <div className="relative min-h-[calc(100vh-8rem)] flex flex-col justify-center items-center py-8 px-4 overflow-hidden select-none">
@@ -82,13 +64,18 @@ export const FeatureHub: React.FC<FeatureHubProps> = ({ onSelectMode }) => {
                 <ArrowLeftRight className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
 
-              {/* Title */}
+              {/* Title & Path */}
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-xl font-bold text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors truncate">
                   Trade Position Transfer
                 </h2>
-                <div className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
-                  Portfolio Transfer Engine
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-amber-400/10 border border-amber-400/25 text-amber-300">
+                    /trade-transfer
+                  </span>
+                  <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                    Portfolio Transfer Engine
+                  </span>
                 </div>
               </div>
             </div>
@@ -118,13 +105,18 @@ export const FeatureHub: React.FC<FeatureHubProps> = ({ onSelectMode }) => {
                 <Users className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
 
-              {/* Title */}
+              {/* Title & Path */}
               <div className="min-w-0">
                 <h2 className="text-lg sm:text-xl font-bold text-[var(--text-main)] group-hover:text-emerald-400 transition-colors truncate">
                   People Onboarding
                 </h2>
-                <div className="text-[11px] font-mono text-[var(--text-muted)] mt-0.5">
-                  Personnel Provisioning
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/25 text-emerald-300">
+                    /people-onboard
+                  </span>
+                  <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                    Personnel Provisioning
+                  </span>
                 </div>
               </div>
             </div>
@@ -134,16 +126,6 @@ export const FeatureHub: React.FC<FeatureHubProps> = ({ onSelectMode }) => {
               <ArrowUpRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
           </div>
-        </div>
-
-        {/* ── Minimal Keyboard Shortcut Hint ── */}
-        <div className="flex items-center gap-2 text-[11px] font-mono text-[var(--text-muted)] opacity-60">
-          <span>Keyboard:</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[10px]">1</kbd>
-          <span>Trade</span>
-          <span className="opacity-30">•</span>
-          <kbd className="px-1.5 py-0.5 rounded bg-[var(--input-bg)] border border-[var(--border-card)] text-[10px]">2</kbd>
-          <span>Onboarding</span>
         </div>
       </div>
     </div>

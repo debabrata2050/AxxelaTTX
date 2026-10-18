@@ -27,9 +27,10 @@ DB_PATH = os.path.join(_HERE, "..", "onboarding.db")
 
 
 def _get_conn() -> sqlite3.Connection:
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=30.0)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
     return conn
 
 
@@ -444,24 +445,27 @@ def lookup_cached_account(account_code: str) -> Optional[Dict[str, Any]]:
 
 
 def batch_lookup_cached_accounts(account_list: List[str]) -> Dict[str, Dict[str, Any]]:
-    """Batch lookup for accounts in SQLite cache."""
+    """Batch lookup for accounts in SQLite cache with chunking to protect against SQLite parameter limits."""
     clean_accs = list({a.strip().upper() for a in account_list if a.strip()})
     if not clean_accs:
         return {}
 
-    placeholders = ",".join("?" for _ in clean_accs)
+    chunk_size = 500
+    res = {}
     with _get_conn() as conn:
-        cur = conn.execute(
-            f"SELECT account, raw_data_json FROM sheet_accounts_cache WHERE account IN ({placeholders})",
-            clean_accs,
-        )
-        res = {}
-        for row in cur.fetchall():
-            try:
-                res[row["account"]] = json.loads(row["raw_data_json"])
-            except Exception:
-                pass
-        return res
+        for i in range(0, len(clean_accs), chunk_size):
+            chunk = clean_accs[i : i + chunk_size]
+            placeholders = ",".join("?" for _ in chunk)
+            cur = conn.execute(
+                f"SELECT account, raw_data_json FROM sheet_accounts_cache WHERE account IN ({placeholders})",
+                chunk,
+            )
+            for row in cur.fetchall():
+                try:
+                    res[row["account"]] = json.loads(row["raw_data_json"])
+                except Exception:
+                    pass
+    return res
 
 
 # ---------------------------------------------------------------------------

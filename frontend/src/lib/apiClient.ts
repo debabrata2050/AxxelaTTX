@@ -1,8 +1,13 @@
-import { PreviewResponse, WorkspaceFile } from '@/types/trade.types';
+import {
+  PreviewResponse,
+  WorkspaceFile,
+  WorkspaceStatusResponse,
+  SelectFileResponse,
+} from '@/types/trade.types';
 import { useTradeStore } from '@/store/useTradeStore';
 
-function getSessionHeaders(): Record<string, string> {
-  const sid = useTradeStore.getState().sessionId;
+function getSessionHeaders(overrideSessionId?: string): Record<string, string> {
+  const sid = overrideSessionId || useTradeStore.getState().sessionId;
   return sid ? { 'X-Session-Id': sid } : {};
 }
 
@@ -31,10 +36,26 @@ async function handleResponse<T = any>(res: Response): Promise<T> {
   }
 }
 
+const contractsCache = new Map<string, any>();
+const accountsCache = new Map<string, any>();
+const tradesCache = new Map<string, any>();
+
+export function clearContractsCache(): void {
+  contractsCache.clear();
+  accountsCache.clear();
+  tradesCache.clear();
+}
+
 export const apiClient = {
-  async getStatus() {
-    const res = await fetch('/api/status');
-    return handleResponse(res);
+  clearContractsCache() {
+    clearContractsCache();
+  },
+
+  async getStatus(sessionId?: string): Promise<WorkspaceStatusResponse> {
+    const res = await fetch('/api/status', {
+      headers: { ...getSessionHeaders(sessionId) },
+    });
+    return handleResponse<WorkspaceStatusResponse>(res);
   },
 
   async listFiles(): Promise<{ files: WorkspaceFile[] }> {
@@ -42,47 +63,77 @@ export const apiClient = {
     return handleResponse<{ files: WorkspaceFile[] }>(res);
   },
 
-  async selectFile(filePath: string) {
+  async selectFile(filePath: string, sessionId?: string): Promise<SelectFileResponse> {
+    clearContractsCache();
     const res = await fetch('/api/select-file', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(sessionId),
+      },
       body: JSON.stringify({ file_path: filePath }),
     });
-    return handleResponse(res);
+    return handleResponse<SelectFileResponse>(res);
   },
 
-  async uploadFile(file: File) {
+  async uploadFile(file: File, sessionId?: string): Promise<SelectFileResponse> {
+    clearContractsCache();
     const formData = new FormData();
     formData.append('file', file);
     const res = await fetch('/api/upload-file', {
       method: 'POST',
+      headers: {
+        ...getSessionHeaders(sessionId),
+      },
       body: formData,
     });
-    return handleResponse(res);
+    return handleResponse<SelectFileResponse>(res);
   },
 
   async deleteFile(filePath: string): Promise<{ success: boolean; message?: string; error?: string }> {
+    clearContractsCache();
     const res = await fetch('/api/delete-file', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...getSessionHeaders(),
+      },
       body: JSON.stringify({ file_path: filePath }),
     });
     return handleResponse(res);
   },
 
-  async unloadFile() {
-    const res = await fetch('/api/unload-file', { method: 'POST' });
-    return handleResponse(res);
+  async unloadFile(): Promise<{ success: boolean }> {
+    clearContractsCache();
+    const res = await fetch('/api/unload-file', {
+      method: 'POST',
+      headers: { ...getSessionHeaders() },
+    });
+    return handleResponse<{ success: boolean }>(res);
   },
 
   async getAccounts(query = '') {
+    const sid = useTradeStore.getState().sessionId || 'default';
+    const cacheKey = `${sid}::${query.trim().toUpperCase()}`;
+    if (accountsCache.has(cacheKey)) {
+      return accountsCache.get(cacheKey);
+    }
+
     const res = await fetch(`/api/accounts?q=${encodeURIComponent(query)}`, {
       headers: { ...getSessionHeaders() },
     });
-    return handleResponse(res);
+    const data = await handleResponse(res);
+    accountsCache.set(cacheKey, data);
+    return data;
   },
 
   async getContracts(accounts: string, product: string, query = '') {
+    const sid = useTradeStore.getState().sessionId || 'default';
+    const cacheKey = `${sid}::${accounts}::${product}::${query.trim().toUpperCase()}`;
+    if (contractsCache.has(cacheKey)) {
+      return contractsCache.get(cacheKey);
+    }
+
     const params = new URLSearchParams({
       accounts,
       product,
@@ -91,10 +142,24 @@ export const apiClient = {
     const res = await fetch(`/api/contracts?${params.toString()}`, {
       headers: { ...getSessionHeaders() },
     });
-    return handleResponse(res);
+    const data = await handleResponse(res);
+    contractsCache.set(cacheKey, data);
+    return data;
   },
 
-  async getTrades(accounts: string[], contractIds: string[], product: string) {
+  async getTrades(
+    accounts: string[],
+    contractIds: string[],
+    product: string,
+    limit?: number,
+    offset?: number
+  ) {
+    const sid = useTradeStore.getState().sessionId || 'default';
+    const cacheKey = `${sid}::${accounts.join(',')}::${(contractIds || []).join(',')}::${product}::${limit}::${offset}`;
+    if (tradesCache.has(cacheKey)) {
+      return tradesCache.get(cacheKey);
+    }
+
     const res = await fetch('/api/trades', {
       method: 'POST',
       headers: {
@@ -106,9 +171,13 @@ export const apiClient = {
         contract_ids: contractIds,
         contract_codes: contractIds,
         product,
+        ...(limit !== undefined ? { limit } : {}),
+        ...(offset !== undefined ? { offset } : {}),
       }),
     });
-    return handleResponse(res);
+    const data = await handleResponse(res);
+    tradesCache.set(cacheKey, data);
+    return data;
   },
 
   async buildPreview(payload: {

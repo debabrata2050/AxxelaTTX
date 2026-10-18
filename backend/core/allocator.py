@@ -33,9 +33,9 @@ def clean_str(val: Any) -> Optional[str]:
 
 def flip_side(side: Any) -> str:
     s = str(side).strip().upper() if side else ""
-    if s == "B":
+    if s in ("B", "BUY"):
         return "S"
-    elif s == "S":
+    elif s in ("S", "SELL"):
         return "B"
     return s
 
@@ -110,7 +110,7 @@ class TradeTransferAllocator:
         row_id_map: Dict[str, Dict[str, Any]],
         price_strategy: PriceStrategy,
         custom_date: Optional[str] = None,
-        output_mode: str = "paired",
+        output_mode: str = "batched",
         global_price_mode: str = "price",
         global_manual_price: Optional[float] = None,
     ) -> Tuple[List[List[Any]], List[int], Dict[str, Any]]:
@@ -242,6 +242,7 @@ class TradeTransferAllocator:
 
         summary = {
             "total_records": len(all_rows) - len(separator_indices),
+            "total_lots": total_dest_lots,
             "total_dest_lots": total_dest_lots,
             "total_src_lots": total_src_lots,
             "routes_count": len(routes_map),

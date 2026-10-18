@@ -83,12 +83,15 @@ key.json
 **/*credentials*.json
 
 # Testing & Cache
+.pytest
+.pytest/
 .pytest_cache/
 .coverage
 htmlcov/
 .turbo/
 
 # IDE / OS
+.kiro/
 .vscode/
 .idea/
 .DS_Store

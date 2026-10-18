@@ -78,7 +78,10 @@ export const Step2Contracts: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
     const loadContracts = async () => {
-      setIsLoading(true);
+      const currentContracts = useTradeStore.getState().contracts;
+      if (currentContracts.length === 0) {
+        setIsLoading(true);
+      }
       try {
         const accounts =
           selectedSenderAccount && selectedSenderAccount !== 'ALL'
