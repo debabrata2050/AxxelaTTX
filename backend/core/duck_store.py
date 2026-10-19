@@ -72,13 +72,12 @@ class DuckStore:
         # 1. Peek first row to detect columns and validate schema
         escaped_path = self.filepath.replace("\\", "/")
         try:
-            peek_df = self.con.execute(
-                f"SELECT * FROM read_csv('{escaped_path}', header=true, all_varchar=true) LIMIT 2"
-            ).fetchdf()
+            res = self.con.execute(
+                f"SELECT * FROM read_csv('{escaped_path}', header=true, all_varchar=true) LIMIT 1"
+            )
+            raw_columns = [desc[0].strip() for desc in res.description if desc and desc[0]]
         except Exception as e:
             raise ValueError(f"Unable to parse trade CSV headers: {e}")
-
-        raw_columns = [c.strip() for c in peek_df.columns if c]
         if not raw_columns:
             raise ValueError(f"No valid columns detected in {self.filename}")
 

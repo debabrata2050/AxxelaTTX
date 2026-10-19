@@ -1,31 +1,43 @@
+import math
 from datetime import datetime
 from typing import List, Dict, Any, Tuple, Optional
-import pandas as pd
 
 from core.models import EXCEL_HEADERS, TradeAllocation
 from core.strategies import PriceStrategy, clean_num, get_price_strategy
 
 
+def _is_na(val: Any) -> bool:
+    if val is None:
+        return True
+    if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+        return True
+    return False
+
+
 def parse_trade_date(val: Any) -> Optional[datetime]:
-    if pd.isna(val) or val is None or str(val).strip() == "":
+    if _is_na(val) or str(val).strip() == "":
         return None
     if isinstance(val, datetime):
         return val
     val_str = str(val).strip()
-    for fmt in ("%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d-%m-%y", "%Y%m%d"):
+    for fmt in (
+        "%d-%m-%Y", "%d/%m/%Y", "%Y-%m-%d", "%Y/%m/%d",
+        "%m/%d/%Y", "%d-%m-%y", "%Y%m%d", "%Y-%m-%d %H:%M:%S",
+        "%d-%b-%Y", "%d %b %Y", "%b %d %Y"
+    ):
         try:
             return datetime.strptime(val_str, fmt)
         except ValueError:
             pass
     try:
-        dt = pd.to_datetime(val_str, dayfirst=True)
-        return dt.to_pydatetime()
+        from dateutil import parser as date_parser
+        return date_parser.parse(val_str, dayfirst=True)
     except Exception:
         return None
 
 
 def clean_str(val: Any) -> Optional[str]:
-    if pd.isna(val) or val is None:
+    if _is_na(val):
         return None
     s = str(val).strip()
     return s if s != "" else None

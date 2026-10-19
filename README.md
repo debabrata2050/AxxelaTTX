@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
 [![Flask](https://img.shields.io/badge/Flask-3.0-000000?style=for-the-badge&logo=flask&logoColor=white)](https://flask.palletsprojects.com/)
-[![Pandas](https://img.shields.io/badge/Pandas-2.0+-150458?style=for-the-badge&logo=pandas&logoColor=white)](https://pandas.pydata.org/)
+[![DuckDB](https://img.shields.io/badge/DuckDB-1.0+-FFF000?style=for-the-badge&logo=duckdb&logoColor=black)](https://duckdb.org/)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-v4-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](https://tailwindcss.com/)
 
 
@@ -80,7 +80,7 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
 ### Step 4: Review, Verification & 18-Column Excel Export
 - **Clearing Compliant**: Conforms to prime broker and clearing house ingestion schemas.
 - **Automated Opposing Legs**: Generates clean outbound (-Qty) and inbound (+Qty) book entries where required.
-- **High-Performance Serialization**: Leverages Python Pandas vectorization and `openpyxl` for instant workbook compilation.
+- **High-Performance Serialization**: Leverages streaming `openpyxl` for instant workbook compilation with minimal memory overhead.
 
 ---
 
@@ -102,7 +102,7 @@ It streamlines complex post-trade operations: ingesting multi-megabyte instituti
 | **State Management** | [Zustand 5](https://github.com/pmndrs/zustand) (Modular Session Store) |
 | **Icons & Visuals** | [Lucide React](https://lucide.dev/), Custom Vector SVG Branding |
 | **Backend API** | [Python 3.9+](https://www.python.org/), [Flask 3.0](https://flask.palletsprojects.com/) |
-| **Data Engine** | [Pandas 2.0+](https://pandas.pydata.org/), [OpenPyXL](https://openpyxl.readthedocs.io/) |
+| **Data Engine** | [DuckDB](https://duckdb.org/), [OpenPyXL](https://openpyxl.readthedocs.io/) |
 | **API Architecture** | Modular Flask Blueprints (`file_bp`, `trade_bp`, `export_bp`) |
 | **Process Controls** | Dual-process batch launchers (`start_app.bat`, `stop_app.bat`) |
 
