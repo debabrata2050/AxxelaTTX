@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { useTradeStore } from '@/store/useTradeStore';
+import { useTradeStore, AppModule } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 import {
   Menu,
@@ -14,22 +14,26 @@ import {
 import { toggleTheme } from '@/lib/theme';
 
 interface HeaderProps {
+  activeModule?: AppModule;
   onOpenFileModal: () => void;
   onOpenRulesModal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
+  activeModule: propActiveModule,
   onOpenFileModal,
   onOpenRulesModal,
 }) => {
   const {
     theme,
-    activeModule,
+    activeModule: storeActiveModule,
     activeFilename,
     accountCount,
     tradeCount,
     toggleMobileDrawer,
   } = useTradeStore();
+
+  const activeModule = propActiveModule ?? storeActiveModule;
 
   const { rows } = useOnboardingStore();
   const onboardingCount = rows.length;
@@ -115,6 +119,16 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="hidden sm:inline">Config</span>
               </button>
             )}
+          </div>
+        )}
+
+        {/* Contextual Widget for StoneX Netting Mode */}
+        {activeModule === 'stonex' && (
+          <div className="hidden min-[440px]:flex items-center gap-2">
+            <div className="px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[11px] font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span>StoneX Netting: <strong className="text-[var(--accent-gold)] font-mono">LCE30553</strong></span>
+            </div>
           </div>
         )}
 

@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { ConsoleBanner } from '@/components/ConsoleBanner';
 
@@ -28,7 +29,9 @@ export default function RootLayout({
         <link rel="alternate icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Anti-Flicker Pre-Paint Theme Initialization */}
-        <script
+        <Script
+          id="theme-init"
+          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{
             __html: `(()=>{var s=null;try{s=localStorage.getItem("trade_theme")}catch(e){}var d=s!=="light";document.documentElement.classList.toggle("dark",d);document.documentElement.classList.toggle("light",!d);document.documentElement.setAttribute("data-theme",d?"dark":"light");document.documentElement.style.colorScheme=d?"dark":"light";})();`,
           }}

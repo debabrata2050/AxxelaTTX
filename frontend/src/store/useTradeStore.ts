@@ -37,7 +37,7 @@ function broadcastSession(sessionId: string | null) {
   }
 }
 
-export type AppModule = 'home' | 'trade' | 'onboarding';
+export type AppModule = 'home' | 'trade' | 'onboarding' | 'stonex';
 
 interface TradeState {
   theme: 'dark' | 'light';
@@ -205,6 +205,8 @@ export const useTradeStore = create<TradeState>((set, get) => ({
           ? '/trade-transfer'
           : module === 'onboarding'
           ? '/people-onboard'
+          : module === 'stonex'
+          ? '/stonex-netting'
           : '/';
       if (window.location.pathname !== targetPath) {
         window.history.pushState({ module }, '', targetPath);

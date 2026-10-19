@@ -12,6 +12,7 @@ import { ConfirmModal } from '@/components/ui/ConfirmModal';
 import { FileSwitchModal } from '@/components/ui/FileSwitchModal';
 import { FeatureHub } from '@/components/home/FeatureHub';
 import { OnboardingTab, RulesModal } from '@/components/onboarding/OnboardingTab';
+import { StoneXNettingTab } from '@/components/stonex/StoneXNettingTab';
 
 import { Step0FileSelect } from '@/components/steps/Step0FileSelect';
 import { Step1RouteMap } from '@/components/steps/Step1RouteMap';
@@ -54,12 +55,21 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [reconnectCandidate, setReconnectCandidate] = useState<any | null>(null);
 
+  // SSR-safe currentModule initialized to defaultModule prop
+  const [currentModule, setCurrentModule] = useState<AppModule>(defaultModule || 'home');
+
   // Sync defaultModule from route entry if specified
   useEffect(() => {
-    if (defaultModule && activeModule !== defaultModule) {
+    if (defaultModule) {
       setActiveModule(defaultModule);
+      setCurrentModule(defaultModule);
     }
-  }, [defaultModule]);
+  }, [defaultModule, setActiveModule]);
+
+  // Sync with store activeModule updates
+  useEffect(() => {
+    setCurrentModule(activeModule);
+  }, [activeModule]);
 
   // Sync with browser Back / Forward buttons
   useEffect(() => {
@@ -69,6 +79,8 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
         setActiveModule('trade');
       } else if (path.startsWith('/people-onboard') || path.startsWith('/onboarding')) {
         setActiveModule('onboarding');
+      } else if (path.startsWith('/stonex-netting') || path.startsWith('/stonex')) {
+        setActiveModule('stonex');
       } else if (path === '/' || path === '') {
         setActiveModule('home');
       }
@@ -128,6 +140,11 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
     <div className="flex h-screen overflow-hidden bg-[var(--canvas-bg)]">
       {/* ── Persistent Unified Sidebar (Desktop / Tablet) ── */}
       <Sidebar
+        activeModule={currentModule}
+        onSelectModule={(mod) => {
+          setCurrentModule(mod);
+          setActiveModule(mod);
+        }}
         onResetConfirm={() => setShowResetConfirm(true)}
         onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
         onOpenRulesModal={() => setShowRulesModal(true)}
@@ -135,6 +152,11 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
 
       {/* ── Mobile Drawer (Mobile viewports) ── */}
       <MobileDrawer
+        activeModule={currentModule}
+        onSelectModule={(mod) => {
+          setCurrentModule(mod);
+          setActiveModule(mod);
+        }}
         onResetConfirm={() => setShowResetConfirm(true)}
         onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
         onOpenRulesModal={() => setShowRulesModal(true)}
@@ -144,6 +166,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
       <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden bg-[var(--canvas-bg)]">
         {/* Header with Feature Switcher & Contextual Actions */}
         <Header
+          activeModule={currentModule}
           onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
           onOpenRulesModal={() => setShowRulesModal(true)}
         />
@@ -220,7 +243,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* View 1: Home Feature Hub */}
-            {activeModule === 'home' && (
+            {currentModule === 'home' && (
               <FeatureHub
                 onSelectMode={(mode) => setActiveModule(mode)}
                 onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
@@ -229,7 +252,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             )}
 
             {/* View 2: Trade Transfer 5-Step Pipeline */}
-            {activeModule === 'trade' && (
+            {currentModule === 'trade' && (
               <div key={currentStep} className="step-view-enter space-y-6">
                 {currentStep === 0 && <Step0FileSelect />}
                 {currentStep === 1 && <Step1RouteMap />}
@@ -240,16 +263,23 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             )}
 
             {/* View 3: People Onboarding Portal */}
-            {activeModule === 'onboarding' && (
+            {currentModule === 'onboarding' && (
               <div className="step-view-enter">
                 <OnboardingTab />
+              </div>
+            )}
+
+            {/* View 4: StoneX Netting Portal */}
+            {currentModule === 'stonex' && (
+              <div className="step-view-enter">
+                <StoneXNettingTab />
               </div>
             )}
           </div>
         </div>
 
         {/* Sticky Status Basket Bar — only in trade mode during active steps */}
-        {activeModule === 'trade' && currentStep > 0 && <BasketBar />}
+        {currentModule === 'trade' && currentStep > 0 && <BasketBar />}
       </main>
 
       {/* ── Global Loading Overlay with Step Progress ── */}

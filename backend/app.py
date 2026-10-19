@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 
-from api import file_bp, trade_bp, export_bp, onboarding_bp
+from api import file_bp, trade_bp, export_bp, onboarding_bp, stonex_bp
 
 
 def create_app() -> Flask:
@@ -23,6 +23,7 @@ def create_app() -> Flask:
     app.register_blueprint(trade_bp)
     app.register_blueprint(export_bp)
     app.register_blueprint(onboarding_bp)
+    app.register_blueprint(stonex_bp)
 
     @app.route("/api/health", methods=["GET"])
     def health():

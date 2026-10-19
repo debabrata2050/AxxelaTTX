@@ -3,10 +3,10 @@
 import React from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
-import { ArrowLeftRight, Users, ArrowUpRight } from 'lucide-react';
+import { ArrowLeftRight, Users, ArrowUpRight, Scale } from 'lucide-react';
 
 interface FeatureHubProps {
-  onSelectMode: (mode: 'trade' | 'onboarding') => void;
+  onSelectMode: (mode: 'trade' | 'onboarding' | 'stonex') => void;
   onOpenFileModal?: () => void;
   onOpenRules?: () => void;
 }
@@ -123,6 +123,39 @@ export const FeatureHub: React.FC<FeatureHubProps> = ({ onSelectMode }) => {
 
             {/* Launch Arrow */}
             <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-emerald-400 border border-transparent group-hover:border-emerald-400 flex items-center justify-center text-[var(--text-muted)] group-hover:text-black transition-all duration-300 flex-shrink-0 ml-3">
+              <ArrowUpRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+            </div>
+          </div>
+
+          {/* ── Card 3: StoneX Netting ── */}
+          <div
+            onClick={() => onSelectMode('stonex')}
+            className="group relative flex items-center justify-between p-6 sm:p-7 rounded-3xl bg-[var(--card-bg)] border border-[var(--border-card)] hover:border-sky-500/60 shadow-md hover:shadow-xl cursor-pointer transition-all duration-300 hover:-translate-y-1.5 active:scale-98 md:col-span-2"
+          >
+            <div className="flex items-center gap-4 sm:gap-5 min-w-0">
+              {/* Symbol */}
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-sky-500/10 border border-sky-500/25 flex items-center justify-center text-sky-400 shadow-inner transition-all duration-300 group-hover:scale-105 group-hover:bg-sky-500/20 flex-shrink-0">
+                <Scale className="w-7 h-7 sm:w-8 sm:h-8" />
+              </div>
+
+              {/* Title & Path */}
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold text-[var(--text-main)] group-hover:text-sky-400 transition-colors truncate">
+                  StoneX Netting
+                </h2>
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/25 text-sky-300">
+                    /stonex-netting
+                  </span>
+                  <span className="text-[11px] font-mono text-[var(--text-muted)]">
+                    Zero-Delta Consolidation (LCE30553)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Launch Arrow */}
+            <div className="w-10 h-10 rounded-xl bg-white/5 group-hover:bg-sky-400 border border-transparent group-hover:border-sky-400 flex items-center justify-center text-[var(--text-muted)] group-hover:text-black transition-all duration-300 flex-shrink-0 ml-3">
               <ArrowUpRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </div>
           </div>

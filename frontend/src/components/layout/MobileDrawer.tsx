@@ -3,6 +3,7 @@
 import React from 'react';
 import { useTradeStore, AppModule } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
+import { useStoneXStore } from '@/store/useStoneXStore';
 import {
   FileText,
   ArrowRight,
@@ -16,6 +17,8 @@ import {
   Users,
   Settings2,
   UserPlus,
+  Scale,
+  Layers,
 } from 'lucide-react';
 
 const TRADE_STEPS = [
@@ -27,18 +30,22 @@ const TRADE_STEPS = [
 ];
 
 interface MobileDrawerProps {
+  activeModule?: AppModule;
+  onSelectModule?: (module: AppModule) => void;
   onResetConfirm: () => void;
   onResetOnboardingConfirm: () => void;
   onOpenRulesModal?: () => void;
 }
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
+  activeModule: propActiveModule,
+  onSelectModule,
   onResetConfirm,
   onResetOnboardingConfirm,
   onOpenRulesModal,
 }) => {
   const {
-    activeModule,
+    activeModule: storeActiveModule,
     setActiveModule,
     currentStep,
     setStep,
@@ -52,8 +59,16 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     showAlert,
   } = useTradeStore();
 
+  const activeModule = propActiveModule ?? storeActiveModule;
+
   const { rows } = useOnboardingStore();
   const onboardingCount = rows.length;
+
+  const stoneXStep = useStoneXStore((s) => s.currentStep);
+  const setStoneXStep = useStoneXStore((s) => s.setStep);
+  const canProceedToStoneXStep = useStoneXStore((s) => s.canProceedToStep);
+  const resetStoneX = useStoneXStore((s) => s.resetAll);
+  const stoneXSummary = useStoneXStore((s) => s.summary);
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep > 0 && !activeFilePath) return;
@@ -85,6 +100,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   };
 
   const handleSelectModule = (module: AppModule) => {
+    if (onSelectModule) onSelectModule(module);
     setActiveModule(module);
     toggleMobileDrawer(false);
   };
@@ -154,6 +170,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 icon: Users,
                 badge: onboardingCount > 0 ? `${onboardingCount}` : null,
                 badgeColor: 'text-emerald-300 bg-emerald-400/10 border-emerald-400/20',
+              },
+              {
+                id: 'stonex',
+                label: 'StoneX Netting',
+                icon: Scale,
+                badge: null,
+                badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
               },
             ] as {
               id: AppModule;
@@ -282,6 +305,67 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               )}
             </div>
           )}
+
+          {activeModule === 'stonex' && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono px-2 py-1 flex items-center justify-between">
+                <span>Netting Pipeline</span>
+                <span className="text-[10px] text-sky-400">Step {stoneXStep + 1}/5</span>
+              </div>
+
+              {[
+                { step: 0, title: 'CSV Source', desc: 'File Ingestion & KPIs', icon: FileSpreadsheet },
+                { step: 1, title: 'Products', desc: 'Multi-Product Picker', icon: Layers },
+                { step: 2, title: 'Contracts', desc: 'Delivery Period Selection', icon: Filter },
+                { step: 3, title: 'Netting Audit', desc: 'Zero-Delta Validation', icon: Scale },
+                { step: 4, title: 'Review & Export', desc: 'Consolidated Sheet LCE30553', icon: ArrowRight },
+              ].map((s) => {
+                const isActive = stoneXStep === s.step;
+                const isDone = stoneXStep > s.step;
+                const check = canProceedToStoneXStep(s.step);
+                const isClickable = check.allowed;
+
+                return (
+                  <button
+                    key={s.step}
+                    type="button"
+                    onClick={() => {
+                      if (isClickable) {
+                        setStoneXStep(s.step);
+                        toggleMobileDrawer(false);
+                      }
+                    }}
+                    disabled={!isClickable}
+                    className={`w-full p-2.5 rounded-xl border text-xs flex items-center gap-3 text-left transition cursor-pointer ${
+                      isActive
+                        ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] font-bold'
+                        : isDone
+                        ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
+                        : isClickable
+                        ? 'border-transparent text-[var(--text-muted)] hover:bg-white/5'
+                        : 'border-transparent text-[var(--text-muted)] opacity-35 cursor-not-allowed'
+                    }`}
+                  >
+                    <span
+                      className={`w-6 h-6 rounded-lg flex items-center justify-center font-mono font-bold shrink-0 ${
+                        isActive
+                          ? 'bg-[var(--accent-gold)] text-black'
+                          : isDone
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-white/5 text-[var(--text-muted)]'
+                      }`}
+                    >
+                      {isDone ? '✓' : s.step}
+                    </span>
+                    <div className="truncate min-w-0">
+                      <div className="font-bold truncate">{s.title}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] truncate">{s.desc}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </nav>
 
         {/* Footer Actions */}
@@ -309,6 +393,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <RotateCcw className="w-4 h-4" />
               Reset Onboarding Session
+            </button>
+          )}
+
+          {activeModule === 'stonex' && stoneXSummary && (
+            <button
+              onClick={() => {
+                toggleMobileDrawer(false);
+                resetStoneX();
+              }}
+              className="w-full py-2 px-3 rounded-xl text-xs font-bold text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-2 border border-sky-500/20 transition cursor-pointer"
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reset StoneX Pipeline
             </button>
           )}
           <div className="text-[10px] text-center text-[var(--text-muted)] font-mono">
