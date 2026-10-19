@@ -13,6 +13,7 @@ import { FileSwitchModal } from '@/components/ui/FileSwitchModal';
 import { FeatureHub } from '@/components/home/FeatureHub';
 import { OnboardingTab, RulesModal } from '@/components/onboarding/OnboardingTab';
 import { StoneXNettingTab } from '@/components/stonex/StoneXNettingTab';
+import { KGINettingTab } from '@/components/kgi/KGINettingTab';
 
 import { Step0FileSelect } from '@/components/steps/Step0FileSelect';
 import { Step1RouteMap } from '@/components/steps/Step1RouteMap';
@@ -81,6 +82,8 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
         setActiveModule('onboarding');
       } else if (path.startsWith('/stonex-netting') || path.startsWith('/stonex')) {
         setActiveModule('stonex');
+      } else if (path.startsWith('/kgi-netting') || path.startsWith('/kgi')) {
+        setActiveModule('kgi');
       } else if (path === '/' || path === '') {
         setActiveModule('home');
       }
@@ -273,6 +276,13 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             {currentModule === 'stonex' && (
               <div className="step-view-enter">
                 <StoneXNettingTab />
+              </div>
+            )}
+
+            {/* View 5: KGI Netting Portal */}
+            {currentModule === 'kgi' && (
+              <div className="step-view-enter">
+                <KGINettingTab />
               </div>
             )}
           </div>

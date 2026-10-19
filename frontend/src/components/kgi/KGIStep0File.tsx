@@ -1,0 +1,145 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useKGIStore } from '@/store/useKGIStore';
+import { FileDropzone } from '@/components/ui/FileDropzone';
+import { MetricCard } from '@/components/ui/MetricCard';
+import {
+  FileSpreadsheet,
+  Layers,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  AlertTriangle,
+} from 'lucide-react';
+
+export const KGIStep0File: React.FC = () => {
+  const summary = useKGIStore((s) => s.summary);
+  const setSummary = useKGIStore((s) => s.setSummary);
+  const setStep = useKGIStore((s) => s.setStep);
+  const setError = useKGIStore((s) => s.setError);
+  const setSuccess = useKGIStore((s) => s.setSuccess);
+
+  const [isUploading, setIsUploading] = useState(false);
+
+  const handleFileUpload = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      setError('Invalid file format. KGI Netting requires a CSV positions export.');
+      return;
+    }
+    if (file.size > 500 * 1024 * 1024) {
+      setError('File exceeds maximum allowable limit of 500MB.');
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setSuccess(null);
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const res = await fetch('/api/kgi/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to ingest KGI CSV.');
+      }
+      setSummary(data.data);
+      // Auto move forward on success without alert banner
+      setStep(1);
+    } catch (err: any) {
+      setError(err.message || 'Error uploading file.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6 animate-in fade-in duration-200">
+      {/* Dropzone Card */}
+      <div className="p-4 sm:p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-[var(--border-card)] pb-3">
+          <div className="flex items-center gap-2">
+            <span className="w-6 h-6 rounded-lg bg-sky-500/10 text-sky-400 text-xs font-mono font-bold flex items-center justify-center">
+              0
+            </span>
+            <h3 className="text-sm font-bold text-[var(--text-main)] uppercase tracking-wider font-mono">
+              Step 0: Ingest Institutional Position Feed
+            </h3>
+          </div>
+        </div>
+
+        <FileDropzone
+          onFileSelect={handleFileUpload}
+          title="Upload KGI Position CSV"
+          subtitle="Instant automated scan across sub-account position feeds."
+          badgeText="Max 500MB • Institutional CSV"
+          accept=".csv"
+          isLoading={isUploading}
+        />
+      </div>
+
+      {/* Summary KPI Cards if loaded */}
+      {summary && (
+        <div className="p-4 sm:p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-xs space-y-5 animate-in fade-in">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="w-4 h-4 text-sky-400" />
+              <span className="font-mono text-xs font-bold text-[var(--text-main)]">
+                {summary.filename}
+              </span>
+            </div>
+            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" />
+              Ingestion Verified
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <MetricCard
+              label="Positions Scanned"
+              value={summary.total_positions.toLocaleString()}
+              subtext="Raw feed records"
+              icon={<Layers className="w-5 h-5" />}
+            />
+            <MetricCard
+              label="Distinct Products"
+              value={summary.total_products.toLocaleString()}
+              subtext="Contracts in feed"
+              icon={<FileSpreadsheet className="w-5 h-5" />}
+            />
+            <MetricCard
+              label="Net-Zero Eligible"
+              value={summary.eligible_contracts_count.toLocaleString()}
+              subtext="Buy = Sell partitions"
+              variant="emerald"
+              icon={<CheckCircle2 className="w-5 h-5" />}
+            />
+            <MetricCard
+              label="Balanced Lots"
+              value={summary.total_eligible_lots.toLocaleString()}
+              subtext="Ready for transfer"
+              variant="gold"
+              icon={<ShieldCheck className="w-5 h-5" />}
+            />
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="px-5 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-400 text-black font-semibold text-xs transition-all flex items-center gap-2 cursor-pointer shadow-md"
+            >
+              <span>Configure Products (Step 1)</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

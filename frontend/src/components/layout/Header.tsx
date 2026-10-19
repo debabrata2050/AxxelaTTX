@@ -132,6 +132,16 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         )}
 
+        {/* Contextual Widget for KGI Netting Mode */}
+        {activeModule === 'kgi' && (
+          <div className="hidden min-[440px]:flex items-center gap-2">
+            <div className="px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[11px] font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
+              <span>KGI Netting: <strong className="text-sky-400 font-mono">KT513Z</strong></span>
+            </div>
+          </div>
+        )}
+
         {/* ── Live Local Time Clock Pill ── */}
         {mounted && currentTime && (
           <div

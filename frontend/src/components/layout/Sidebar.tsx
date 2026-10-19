@@ -4,6 +4,7 @@ import React from 'react';
 import { useTradeStore, AppModule } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 import { useStoneXStore } from '@/store/useStoneXStore';
+import { useKGIStore } from '@/store/useKGIStore';
 import {
   FileText,
   ArrowRight,
@@ -75,6 +76,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const canProceedToStoneXStep = useStoneXStore((s) => s.canProceedToStep);
   const resetStoneX = useStoneXStore((s) => s.resetAll);
   const stoneXSummary = useStoneXStore((s) => s.summary);
+
+  const kgiStep = useKGIStore((s) => s.currentStep);
+  const setKGIStep = useKGIStore((s) => s.setStep);
+  const canProceedToKGIStep = useKGIStore((s) => s.canProceedToStep);
+  const resetKGI = useKGIStore((s) => s.resetAll);
+  const kgiSummary = useKGIStore((s) => s.summary);
 
   const handleStepClick = (targetStep: number) => {
     if (targetStep > 0 && !activeFilePath) return;
@@ -182,6 +189,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               id: 'stonex',
               label: 'StoneX Netting',
               icon: Scale,
+              badge: null,
+              badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
+            },
+            {
+              id: 'kgi',
+              label: 'KGI Netting',
+              icon: Layers,
               badge: null,
               badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
             },
@@ -413,6 +427,72 @@ export const Sidebar: React.FC<SidebarProps> = ({
             })}
           </div>
         )}
+
+        {/* Scenario 4: KGI Netting Active */}
+        {activeModule === 'kgi' && (
+          <div className="space-y-1.5">
+            {!isSidebarCollapsed && (
+              <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono px-2 py-1 flex items-center justify-between">
+                <span>KGI Pipeline</span>
+                <span className="text-[10px] text-sky-400">Step {kgiStep + 1}/5</span>
+              </div>
+            )}
+
+            {[
+              { step: 0, title: 'CSV Source', desc: 'File Ingestion & KPIs', icon: FileSpreadsheet },
+              { step: 1, title: 'Products', desc: 'Multi-Product Picker', icon: Layers },
+              { step: 2, title: 'Contracts', desc: 'Contract Expiry Selection', icon: Filter },
+              { step: 3, title: 'Netting Audit', desc: 'Zero-Delta Validation', icon: Scale },
+              { step: 4, title: 'Review & Export', desc: 'Consolidated Form KT513Z', icon: ArrowRight },
+            ].map((s) => {
+              const Icon = s.icon;
+              const isActive = kgiStep === s.step;
+              const isDone = kgiStep > s.step;
+              const check = canProceedToKGIStep(s.step);
+              const isClickable = check.allowed;
+
+              return (
+                <button
+                  key={s.step}
+                  type="button"
+                  onClick={() => isClickable && setKGIStep(s.step)}
+                  disabled={!isClickable}
+                  title={!isClickable ? check.reason : `Go to Step ${s.step}: ${s.title}`}
+                  className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition border cursor-pointer ${
+                    isActive
+                      ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-xs font-bold'
+                      : isDone
+                      ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
+                      : isClickable
+                      ? 'border-transparent text-[var(--text-muted)] hover:bg-white/5'
+                      : 'border-transparent text-[var(--text-muted)] opacity-35 cursor-not-allowed'
+                  } ${isSidebarCollapsed ? 'justify-center p-2.5' : ''}`}
+                >
+                  <div
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${
+                      isActive
+                        ? 'bg-[var(--accent-gold)] text-black'
+                        : isDone
+                        ? 'bg-emerald-500/20 text-emerald-400'
+                        : 'bg-white/5 text-[var(--text-muted)]'
+                    }`}
+                  >
+                    {isDone ? '✓' : s.step}
+                  </div>
+
+                  {!isSidebarCollapsed && (
+                    <div className="truncate">
+                      <div className="text-xs font-bold truncate leading-tight">{s.title}</div>
+                      <div className="text-[10px] text-[var(--text-muted)] truncate mt-0.5">
+                        {s.desc}
+                      </div>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── Footer Actions ── */}
@@ -447,6 +527,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
           >
             <RotateCcw className="w-3.5 h-3.5" />
             {!isSidebarCollapsed && <span>Reset StoneX Pipeline</span>}
+          </button>
+        )}
+
+        {activeModule === 'kgi' && kgiSummary && (
+          <button
+            onClick={resetKGI}
+            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            title="Reset KGI Netting Pipeline"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            {!isSidebarCollapsed && <span>Reset KGI Pipeline</span>}
           </button>
         )}
 

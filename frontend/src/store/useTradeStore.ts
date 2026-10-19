@@ -37,7 +37,7 @@ function broadcastSession(sessionId: string | null) {
   }
 }
 
-export type AppModule = 'home' | 'trade' | 'onboarding' | 'stonex';
+export type AppModule = 'home' | 'trade' | 'onboarding' | 'stonex' | 'kgi';
 
 interface TradeState {
   theme: 'dark' | 'light';
