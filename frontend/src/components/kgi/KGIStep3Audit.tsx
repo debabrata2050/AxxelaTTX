@@ -200,7 +200,7 @@ export const KGIStep3Audit: React.FC = () => {
         <button
           type="button"
           onClick={() => setStep(2)}
-          className="px-4 py-2.5 rounded-xl bg-[var(--input-bg)] hover:bg-white/5 border border-[var(--border-card)] text-xs font-mono font-medium text-[var(--text-muted)] hover:text-white transition flex items-center gap-2 cursor-pointer"
+          className="px-4 py-2.5 rounded-xl bg-[var(--input-bg)] hover:bg-muted border border-border text-xs font-mono font-medium text-muted-foreground hover:text-foreground transition flex items-center gap-2 cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>Back to Expiries</span>

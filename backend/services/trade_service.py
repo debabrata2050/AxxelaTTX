@@ -251,17 +251,26 @@ class TradeService:
         contract_codes: Optional[List[str]] = None,
         product: str = "ALL",
         limit: Optional[int] = None,
-        offset: int = 0
+        offset: int = 0,
+        force_refresh: bool = False
     ) -> List[Dict[str, Any]]:
         self._assert_loaded()
-        cache_key = f"{','.join(sorted([a.strip().upper() for a in accounts if a.strip()]))}:{','.join(sorted([str(c).strip().upper() for c in (contract_ids or [])]))}:{product.strip().upper()}:{limit}:{offset}"
-        if cache_key in self._trades_cache:
+        clean_accs = sorted([a.strip().upper() for a in accounts if a.strip()])
+        clean_cids = sorted([str(c).strip().upper() for c in (contract_ids or []) if str(c).strip()])
+        clean_codes = sorted([str(c).strip().upper() for c in (contract_codes or []) if str(c).strip()])
+        cache_key = f"{','.join(clean_accs)}:{','.join(clean_cids)}:{','.join(clean_codes)}:{product.strip().upper()}:{limit}:{offset}"
+        
+        if not force_refresh and cache_key in self._trades_cache:
             return self._trades_cache[cache_key]
 
         res = sanitize_for_json(
             self._store.get_trades(accounts, contract_ids, contract_codes, product, limit=limit, offset=offset)
         )
-        self._trades_cache[cache_key] = res
+        if res and len(res) > 0:
+            self._trades_cache[cache_key] = res
+        elif force_refresh and cache_key in self._trades_cache:
+            self._trades_cache.pop(cache_key, None)
+            
         return res
 
     # ------------------------------------------------------------------

@@ -12,6 +12,8 @@ import {
   Clock,
 } from 'lucide-react';
 import { toggleTheme } from '@/lib/theme';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
   activeModule?: AppModule;
@@ -43,6 +45,16 @@ export const Header: React.FC<HeaderProps> = ({
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== 'undefined') {
+      const isDomDark =
+        document.documentElement.getAttribute('data-theme') === 'dark' ||
+        (document.documentElement.classList.contains('dark') &&
+          !document.documentElement.classList.contains('light'));
+      const activeTheme = isDomDark ? 'dark' : 'light';
+      if (useTradeStore.getState().theme !== activeTheme) {
+        useTradeStore.getState().setTheme(activeTheme);
+      }
+    }
     const updateTime = () => {
       setCurrentTime(
         new Date().toLocaleTimeString(undefined, {
@@ -58,16 +70,18 @@ export const Header: React.FC<HeaderProps> = ({
   }, []);
 
   return (
-    <header className="h-14 px-3 sm:px-6 lg:px-8 border-b border-[var(--border-subtle)] bg-[var(--header-bg)] flex items-center justify-between sticky top-0 z-30 transition-colors">
-      {/* ── Left: Hamburger Menu (Mobile/Tablet, perfect for 330px) ── */}
+    <header className="h-14 px-3 sm:px-6 lg:px-8 border-b border-border bg-card/60 backdrop-blur-md flex items-center justify-between sticky top-0 z-30 transition-colors">
+      {/* ── Left: Hamburger Menu (Mobile/Tablet) ── */}
       <div className="flex items-center min-w-0">
-        <button
+        <Button
+          variant="outline"
+          size="icon"
           onClick={() => toggleMobileDrawer(true)}
-          className="p-2 rounded-xl border border-[var(--border-card)] text-[var(--text-sub)] hover:text-[var(--accent-gold)] lg:hidden transition active:scale-95 cursor-pointer flex items-center justify-center flex-shrink-0"
+          className="lg:hidden shrink-0"
           aria-label="Toggle navigation drawer"
         >
-          <Menu className="w-5 h-5" />
-        </button>
+          <Menu className="size-4" />
+        </Button>
       </div>
 
       {/* ── Center: Clean Spacer ── */}
@@ -75,29 +89,30 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* ── Right: Contextual Stats & Smooth Theme Toggle ── */}
       <div className="flex items-center gap-2 sm:gap-3 text-xs font-mono">
-        {/* Contextual Widget for Trade Mode (hidden on narrow screens < 440px for clean layout) */}
+        {/* Contextual Widget for Trade Mode */}
         {activeModule === 'trade' && (
           <div className="hidden min-[440px]:flex items-center gap-2">
-            <div className="flex items-center gap-2 px-2.5 py-1 rounded-full bg-[var(--card-bg)] border border-[var(--border-card)] text-xs shadow-sm max-w-[160px] sm:max-w-xs truncate">
-              <FileText className="w-3.5 h-3.5 text-[var(--accent-gold)] flex-shrink-0" />
-              <span className="truncate font-mono font-medium text-[var(--text-main)] text-[11px]">
+            <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border text-xs shadow-xs max-w-[160px] sm:max-w-xs truncate">
+              <FileText className="size-3.5 text-primary shrink-0" />
+              <span className="truncate font-mono font-medium text-foreground text-[11px]">
                 {activeFilename || 'No file selected'}
               </span>
               <button
+                type="button"
                 onClick={onOpenFileModal}
-                className="text-[11px] font-bold text-[var(--accent-gold)] hover:underline flex-shrink-0 ml-1 cursor-pointer"
+                className="text-[11px] font-bold text-primary hover:underline shrink-0 ml-1 cursor-pointer"
               >
                 Change
               </button>
             </div>
 
             <div className="hidden xl:flex items-center gap-1.5 text-[11px]">
-              <div className="px-2.5 py-0.5 rounded-full bg-[var(--card-bg)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
-                Acc: <strong className="text-[var(--accent-gold)]">{accountCount}</strong>
-              </div>
-              <div className="px-2.5 py-0.5 rounded-full bg-[var(--card-bg)] border border-[var(--border-subtle)] text-[var(--text-muted)]">
-                Rec: <strong className="text-[var(--accent-gold)]">{tradeCount}</strong>
-              </div>
+              <Badge variant="secondary" className="font-normal text-muted-foreground">
+                Acc: <strong className="text-primary font-bold ml-1">{accountCount}</strong>
+              </Badge>
+              <Badge variant="secondary" className="font-normal text-muted-foreground">
+                Rec: <strong className="text-primary font-bold ml-1">{tradeCount}</strong>
+              </Badge>
             </div>
           </div>
         )}
@@ -105,19 +120,22 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Contextual Widget for People Onboarding Mode */}
         {activeModule === 'onboarding' && (
           <div className="hidden min-[440px]:flex items-center gap-2">
-            <div className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-[11px] font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <Badge variant="emerald" className="flex items-center gap-1.5 py-1 px-3">
+              <span className="size-1.5 rounded-full bg-emerald-400" />
               <span>Drafts: {onboardingCount}</span>
-            </div>
+            </Badge>
 
             {onOpenRulesModal && (
-              <button
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
                 onClick={onOpenRulesModal}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-[var(--border-card)] bg-[var(--card-bg)] text-[11px] text-[var(--text-muted)] hover:text-[var(--text-main)] hover:border-[var(--accent-gold)]/50 transition cursor-pointer"
+                className="h-7 rounded-full px-3 text-[11px] gap-1.5 text-muted-foreground hover:text-foreground"
               >
-                <Settings2 className="w-3 h-3 text-[var(--accent-gold)]" />
+                <Settings2 className="size-3 text-primary" />
                 <span className="hidden sm:inline">Config</span>
-              </button>
+              </Button>
             )}
           </div>
         )}
@@ -125,71 +143,54 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Contextual Widget for StoneX Netting Mode */}
         {activeModule === 'stonex' && (
           <div className="hidden min-[440px]:flex items-center gap-2">
-            <div className="px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[11px] font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-              <span>StoneX Netting: <strong className="text-[var(--accent-gold)] font-mono">LCE30553</strong></span>
-            </div>
+            <Badge variant="sky" className="flex items-center gap-1.5 py-1 px-3">
+              <span className="size-1.5 rounded-full bg-sky-400" />
+              <span>StoneX Netting: <strong className="text-primary font-mono ml-1">LCE30553</strong></span>
+            </Badge>
           </div>
         )}
 
         {/* Contextual Widget for KGI Netting Mode */}
         {activeModule === 'kgi' && (
           <div className="hidden min-[440px]:flex items-center gap-2">
-            <div className="px-2.5 py-1 rounded-full bg-sky-500/10 border border-sky-500/20 text-sky-300 text-[11px] font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400" />
-              <span>KGI Netting: <strong className="text-sky-400 font-mono">KT513Z</strong></span>
-            </div>
+            <Badge variant="sky" className="flex items-center gap-1.5 py-1 px-3">
+              <span className="size-1.5 rounded-full bg-sky-400" />
+              <span>KGI Netting: <strong className="text-sky-300 font-mono ml-1">KT513Z</strong></span>
+            </Badge>
           </div>
         )}
 
         {/* ── Live Local Time Clock Pill ── */}
         {mounted && currentTime && (
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--card-bg)] border border-[var(--border-card)] text-[var(--text-sub)] shadow-sm flex-shrink-0 select-none transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-foreground shadow-xs shrink-0 select-none transition-colors"
             title="Local System Time"
           >
-            <Clock className="w-3.5 h-3.5 text-[var(--accent-gold)] flex-shrink-0" />
-            <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight text-[var(--text-main)]">
+            <Clock className="size-3.5 text-primary shrink-0" />
+            <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight text-foreground">
               {currentTime}
             </span>
           </div>
         )}
 
-        {/* ── Ultra-Smooth Sliding Pill Theme Toggle Switch ── */}
-        <button
+        {/* ── Modern Minimalist Theme Toggle (Preserves Ripple Transition) ── */}
+        <Button
           type="button"
+          variant="outline"
+          size="icon"
           onClick={(e) =>
             toggleTheme(
               e.currentTarget,
-              (nextTheme) => useTradeStore.getState().setTheme(nextTheme),
-              theme === 'dark' ? 'light' : 'dark'
+              (nextTheme) => useTradeStore.getState().setTheme(nextTheme)
             )
           }
-          className="relative w-14 h-7 rounded-full bg-[var(--input-bg)] border border-[var(--border-card)] p-0.5 cursor-pointer transition-colors duration-300 focus:outline-none flex items-center shadow-inner flex-shrink-0"
+          className="size-8.5 rounded-full border-border bg-card/80 hover:bg-muted text-foreground transition-all duration-300 relative overflow-hidden shrink-0 shadow-2xs"
           title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} mode`}
           aria-label="Toggle theme"
         >
-          {/* Background Icons */}
-          <div className="absolute inset-0 px-1.5 flex items-center justify-between pointer-events-none">
-            <Moon className={`w-3.5 h-3.5 transition-opacity duration-300 ${theme === 'dark' ? 'opacity-0' : 'text-slate-400 opacity-60'}`} />
-            <Sun className={`w-3.5 h-3.5 transition-opacity duration-300 ${theme === 'light' ? 'opacity-0' : 'text-amber-400 opacity-60'}`} />
-          </div>
-
-          {/* Sliding Thumb with Spring Easing & Icon Micro-Rotation */}
-          <div
-            className={`relative z-10 w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${
-              theme === 'dark'
-                ? 'translate-x-0 bg-gradient-to-br from-amber-300 to-amber-500 text-black shadow-amber-400/30'
-                : 'translate-x-7 bg-gradient-to-br from-yellow-400 to-amber-500 text-black shadow-amber-400/40'
-            }`}
-          >
-            {theme === 'dark' ? (
-              <Moon className="w-3.5 h-3.5 transition-transform duration-300 -rotate-12" />
-            ) : (
-              <Sun className="w-3.5 h-3.5 transition-transform duration-300 rotate-90" />
-            )}
-          </div>
-        </button>
+          <Sun className="size-4 text-amber-500 transition-all duration-500 rotate-0 scale-100 dark:-rotate-90 dark:scale-0" />
+          <Moon className="absolute size-4 text-amber-400 transition-all duration-500 rotate-90 scale-0 dark:rotate-0 dark:scale-100" />
+        </Button>
       </div>
     </header>
   );

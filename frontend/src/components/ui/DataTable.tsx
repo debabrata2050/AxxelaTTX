@@ -1,6 +1,15 @@
 'use client';
 
 import React from 'react';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 export interface ColumnDef<T> {
   key: string;
@@ -18,7 +27,7 @@ interface DataTableProps<T> {
   className?: string;
 }
 
-export function DataTable<T extends Record<string, any>>({
+export function DataTable<T>({
   columns,
   data,
   emptyMessage = 'No records found.',
@@ -27,67 +36,74 @@ export function DataTable<T extends Record<string, any>>({
 }: DataTableProps<T>) {
   return (
     <div
-      className={`rounded-2xl border border-[var(--border-card)] bg-[var(--card-bg)] shadow-sm overflow-hidden ${className}`}
+      className={cn(
+        'rounded-2xl border border-border bg-card shadow-xs overflow-hidden',
+        className
+      )}
     >
       <div className="overflow-x-auto overflow-y-auto" style={{ maxHeight }}>
-        <table className="w-full text-xs font-mono border-collapse">
-          <thead>
-            <tr className="border-b border-[var(--border-card)] bg-[var(--input-bg)] text-[var(--text-muted)] sticky top-0 z-10 select-none">
+        <Table>
+          <TableHeader className="sticky top-0 z-10 select-none bg-muted/90 backdrop-blur-xs">
+            <TableRow className="border-b border-border hover:bg-transparent">
               {columns.map((col) => (
-                <th
+                <TableHead
                   key={col.key}
                   style={{ width: col.width }}
-                  className={`py-3 px-3.5 font-bold uppercase tracking-wider text-[11px] ${
+                  className={cn(
+                    'py-3 px-3.5 font-bold uppercase tracking-wider text-[11px] text-muted-foreground',
                     col.align === 'center'
                       ? 'text-center'
                       : col.align === 'right'
                       ? 'text-right'
                       : 'text-left'
-                  }`}
+                  )}
                 >
                   {col.header}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border-card)]">
+            </TableRow>
+          </TableHeader>
+          <TableBody className="divide-y divide-border/60">
             {data.length === 0 ? (
-              <tr>
-                <td
+              <TableRow>
+                <TableCell
                   colSpan={columns.length}
-                  className="py-12 text-center text-xs text-[var(--text-muted)]"
+                  className="py-12 text-center text-xs text-muted-foreground"
                 >
                   {emptyMessage}
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             ) : (
               data.map((row, idx) => (
-                <tr
+                <TableRow
                   key={idx}
-                  className="hover:bg-[var(--accent-gold)]/5 transition-colors group"
+                  className="hover:bg-primary/5 transition-colors group cursor-default"
                 >
                   {columns.map((col) => {
-                    const content = col.render ? col.render(row, idx) : row[col.key] ?? '—';
+                    const content = col.render
+                      ? col.render(row, idx)
+                      : (row as Record<string, any>)[col.key] ?? '—';
                     return (
-                      <td
+                      <TableCell
                         key={col.key}
-                        className={`py-2.5 px-3.5 whitespace-nowrap text-[var(--text-main)] ${
+                        className={cn(
+                          'py-2.5 px-3.5 whitespace-nowrap text-foreground',
                           col.align === 'center'
                             ? 'text-center'
                             : col.align === 'right'
                             ? 'text-right'
                             : 'text-left'
-                        }`}
+                        )}
                       >
                         {content}
-                      </td>
+                      </TableCell>
                     );
                   })}
-                </tr>
+                </TableRow>
               ))
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </div>
   );

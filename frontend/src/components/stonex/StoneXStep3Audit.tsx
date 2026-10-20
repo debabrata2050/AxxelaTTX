@@ -13,6 +13,7 @@ import {
   Sparkles,
   Info,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const StoneXStep3Audit: React.FC = () => {
   const summary = useStoneXStore((s) => s.summary);
@@ -201,17 +202,21 @@ export const StoneXStep3Audit: React.FC = () => {
 
       {/* ── Footer Navigation ── */}
       <div className="flex items-center justify-between gap-3 pt-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setStep(2)}
-          className="px-4 py-2.5 rounded-xl border border-[var(--border-card)] bg-[var(--card-bg)] text-xs font-mono text-[var(--text-muted)] hover:text-white transition flex items-center gap-2 cursor-pointer"
+          className="rounded-full gap-2 text-xs font-mono"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="size-3.5" />
           <span>Back: Contracts</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="gold"
+          size="pill"
           onClick={() => setStep(4)}
           disabled={!isAllEligible}
           title={
@@ -219,11 +224,11 @@ export const StoneXStep3Audit: React.FC = () => {
               ? 'Hard Gate: All selected contracts must be net-zero (Buy == Sell). Click "Exclude Unbalanced Contracts" above to proceed.'
               : 'Proceed to Review & Export'
           }
-          className="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 bg-[var(--accent-gold)] text-black hover:opacity-95 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="gap-2 font-bold text-xs"
         >
           <span>Next: Review & Export ({contracts.length} Contracts)</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+          <ArrowRight className="size-3.5" />
+        </Button>
       </div>
     </div>
   );

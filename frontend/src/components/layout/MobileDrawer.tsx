@@ -21,6 +21,7 @@ import {
   Scale,
   Layers,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 
 const TRADE_STEPS = [
   { step: 0, title: 'File Source', desc: 'Select or upload CSV', icon: FileText },
@@ -126,11 +127,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
       {/* Sliding Drawer */}
       <div
-        className={`fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-[var(--sidebar-bg)] border-r border-[var(--border-card)] shadow-2xl flex flex-col z-50 transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
-          }`}
+        className={`fixed inset-y-0 left-0 w-80 max-w-[85vw] bg-card border-r border-border shadow-2xl flex flex-col z-50 transform transition-transform duration-300 cubic-bezier(0.16, 1, 0.3, 1) ${
+          isMobileDrawerOpen ? 'translate-x-0' : '-translate-x-full'
+        }`}
       >
         {/* Brand Header */}
-        <div className="h-14 px-4 flex items-center justify-between border-b border-[var(--border-subtle)]">
+        <div className="h-14 px-4 flex items-center justify-between border-b border-border">
           <div
             onClick={() => handleSelectModule('home')}
             className="flex items-center gap-2 cursor-pointer"
@@ -140,15 +142,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               <img src="/logo.svg" alt="Axxela Logo" className="w-7 h-7 object-contain" />
             </div>
             <div>
-              <div className="font-bold text-xs uppercase tracking-wider text-[var(--text-main)]">
+              <div className="font-bold text-xs uppercase tracking-wider text-foreground">
                 Axxela
               </div>
-              <div className="text-[10px] text-[var(--accent-gold)] font-mono">Operations Suite</div>
+              <div className="text-[10px] text-amber-700 dark:text-primary font-mono font-medium">Operations Suite</div>
             </div>
           </div>
           <button
             onClick={() => toggleMobileDrawer(false)}
-            className="p-1 rounded-md text-[var(--text-muted)] hover:text-white cursor-pointer"
+            className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-muted cursor-pointer"
             aria-label="Close drawer"
           >
             <X className="w-5 h-5" />
@@ -156,8 +158,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* Workspaces Switcher */}
-        <div className="p-3 border-b border-[var(--border-subtle)] space-y-1">
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono px-2 pb-1">
+        <div className="p-3 border-b border-border space-y-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono px-2 pb-1">
             Workspaces
           </div>
 
@@ -169,35 +171,35 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 label: 'Trade Transfer',
                 icon: ArrowLeftRight,
                 badge: activeFilename ? 'Active' : null,
-                badgeColor: 'text-amber-300 bg-amber-400/10 border-amber-400/20',
+                variant: 'gold' as const,
               },
               {
                 id: 'onboarding',
                 label: 'People Onboarding',
                 icon: Users,
                 badge: onboardingCount > 0 ? `${onboardingCount}` : null,
-                badgeColor: 'text-emerald-300 bg-emerald-400/10 border-emerald-400/20',
+                variant: 'emerald' as const,
               },
               {
                 id: 'stonex',
                 label: 'StoneX Netting',
                 icon: Scale,
                 badge: null,
-                badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
+                variant: 'sky' as const,
               },
               {
                 id: 'kgi',
                 label: 'KGI Netting',
                 icon: Layers,
                 badge: null,
-                badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
+                variant: 'sky' as const,
               },
             ] as {
               id: AppModule;
               label: string;
               icon: React.ComponentType<{ className?: string }>;
               badge: string | null;
-              badgeColor?: string;
+              variant?: 'gold' | 'emerald' | 'sky';
             }[]
           ).map((m) => {
             const Icon = m.icon;
@@ -208,13 +210,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 key={m.id}
                 onClick={() => handleSelectModule(m.id)}
                 className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition border cursor-pointer ${isActive
-                    ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] font-bold shadow-xs'
-                    : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/5'
+                    ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-primary font-bold shadow-xs'
+                    : 'border-transparent text-slate-600 dark:text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-accent/40'
                   }`}
               >
                 <div className="flex items-center gap-2.5">
                   <div
-                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${isActive ? 'bg-[var(--accent-gold)] text-black' : 'bg-white/5 text-[var(--text-muted)]'
+                    className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs ${isActive ? 'bg-gradient-to-r from-[#ffc81a] via-[#faa000] to-[#f58200] text-black font-bold shadow-2xs' : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground'
                       }`}
                   >
                     <Icon className="w-3.5 h-3.5" />
@@ -223,12 +225,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                 </div>
 
                 {m.badge && (
-                  <span
-                    className={`text-[10px] font-mono font-semibold px-2 py-0.2 rounded-full border ${m.badgeColor || ''
-                      }`}
+                  <Badge
+                    variant={m.variant || 'secondary'}
+                    className="text-[10px] px-2 py-0"
                   >
                     {m.badge}
-                  </span>
+                  </Badge>
                 )}
               </button>
             );

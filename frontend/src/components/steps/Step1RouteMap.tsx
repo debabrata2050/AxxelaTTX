@@ -4,10 +4,11 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
 import { apiClient } from '@/lib/apiClient';
 import { AccountItem } from '@/types/trade.types';
-import { ArrowRight, Plus, Trash2, X, ChevronDown, Check } from 'lucide-react';
+import { ArrowRight, Plus, Trash2, X, ChevronDown, Check, Pencil } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const Step1RouteMap: React.FC = () => {
-  const { routes, addRoute, removeRoute, setStep, showAlert } = useTradeStore();
+  const { routes, addRoute, removeRoute, clearRoutes, setStep, showAlert } = useTradeStore();
 
   const [senderInput, setSenderInput] = useState('');
   const [recipientInput, setRecipientInput] = useState('');
@@ -116,35 +117,13 @@ export const Step1RouteMap: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Step Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
-            Step 1: Configure Transfer Routes
-          </h2>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Map source trading accounts to target destination accounts (Many-to-Many supported).
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button onClick={() => setStep(0)} className="pill-btn-secondary text-xs cursor-pointer">
-            Back
-          </button>
-          <button
-            onClick={() => {
-              if (routes.length === 0) {
-                showAlert('Route Required', 'Please configure at least one transfer route.');
-                return;
-              }
-              setStep(2);
-            }}
-            disabled={routes.length === 0}
-            className="pill-btn-primary text-xs disabled:opacity-40 cursor-pointer"
-          >
-            <span>Next: Select Contracts</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
+          Step 1: Configure Transfer Routes
+        </h2>
+        <p className="text-sm text-[var(--text-muted)] mt-1">
+          Map source trading accounts to target destination accounts (Many-to-Many supported).
+        </p>
       </div>
 
       {/* Route Builder Card */}
@@ -189,7 +168,7 @@ export const Step1RouteMap: React.FC = () => {
                       setSenderInput('');
                       setIsSenderDropdownOpen(true);
                     }}
-                    className="p-1 text-[var(--text-muted)] hover:text-white"
+                    className="p-1 text-[var(--text-muted)] hover:text-foreground"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
@@ -275,7 +254,7 @@ export const Step1RouteMap: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setRecipientInput('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -285,13 +264,15 @@ export const Step1RouteMap: React.FC = () => {
 
           {/* Add Button with Micro-Animation & Gradient */}
           <div>
-            <button
+            <Button
+              type="button"
+              variant="outline"
               onClick={handleAddRoute}
-              className="btn-action w-full py-2.5 px-4 rounded-xl text-xs font-bold text-[var(--accent-gold)] border-[var(--accent-gold)]/40 hover:bg-[var(--accent-gold)] hover:text-black transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+              className="w-full py-2.5 h-10 rounded-xl text-xs font-bold text-amber-800 dark:text-primary border-amber-500/40 hover:bg-amber-500/10 transition flex items-center justify-center gap-2 cursor-pointer active:scale-95"
             >
               <Plus className="w-4 h-4" />
               Add Transfer Route
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -325,9 +306,20 @@ export const Step1RouteMap: React.FC = () => {
 
       {/* Active Transfer Pairs */}
       <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-3">
-        <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-          Active Transfer Pairs ({routes.length}):
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            Active Transfer Pairs ({routes.length}):
+          </h4>
+          {routes.length > 0 && (
+            <button
+              type="button"
+              onClick={clearRoutes}
+              className="text-[11px] text-[var(--text-muted)] hover:text-red-400 transition cursor-pointer font-medium"
+            >
+              Clear All
+            </button>
+          )}
+        </div>
 
         {routes.length === 0 ? (
           <div className="py-8 text-center text-xs text-[var(--text-muted)]">
@@ -338,18 +330,33 @@ export const Step1RouteMap: React.FC = () => {
             {routes.map((r, idx) => (
               <div
                 key={`${r.from}-${r.to}-${idx}`}
-                className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[var(--input-bg)] border border-[var(--border-card)] text-xs font-mono"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[var(--input-bg)] border border-[var(--border-card)] text-xs font-mono"
               >
                 <span className="font-bold text-red-400">{r.from}</span>
                 <ArrowRight className="w-3.5 h-3.5 text-[var(--accent-gold)]" />
                 <span className="font-bold text-emerald-400">{r.to}</span>
-                <button
-                  onClick={() => removeRoute(idx)}
-                  className="ml-1 p-0.5 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-white/5 transition cursor-pointer"
-                  title="Remove route"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                <div className="flex items-center ml-1 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSenderInput(r.from);
+                      setRecipientInput(r.to);
+                      removeRoute(idx);
+                    }}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--accent-gold)] hover:bg-white/5 transition cursor-pointer"
+                    title="Edit route"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeRoute(idx)}
+                    className="p-1 rounded text-[var(--text-muted)] hover:text-red-400 hover:bg-white/5 transition cursor-pointer"
+                    title="Remove route"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>

@@ -13,6 +13,7 @@ import {
   AlertCircle,
   Layers,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ProductCardProps {
   product: ProductInfo;
@@ -177,7 +178,7 @@ export const StoneXStep1Products: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setProductSearch('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-white"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -191,7 +192,7 @@ export const StoneXStep1Products: React.FC = () => {
             className={`px-3 py-2 rounded-xl border text-xs font-mono transition flex items-center justify-center gap-1.5 cursor-pointer ${
               onlyEligibleFilter
                 ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-300 font-bold'
-                : 'bg-[var(--input-bg)] border-[var(--border-card)] text-[var(--text-muted)] hover:text-white'
+                : 'bg-[var(--input-bg)] border-[var(--border-card)] text-muted-foreground hover:text-foreground hover:bg-muted'
             }`}
           >
             <Filter className="w-3.5 h-3.5" />
@@ -203,7 +204,7 @@ export const StoneXStep1Products: React.FC = () => {
             <button
               type="button"
               onClick={selectAllProducts}
-              className="px-3 py-2 rounded-xl border border-[var(--border-card)] bg-[var(--input-bg)] hover:bg-white/5 text-[var(--text-muted)] hover:text-white text-xs font-mono transition cursor-pointer"
+              className="px-3 py-2 rounded-xl border border-border bg-[var(--input-bg)] hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-mono transition cursor-pointer"
             >
               All ({summary.total_products})
             </button>
@@ -267,17 +268,21 @@ export const StoneXStep1Products: React.FC = () => {
       )}
 
       <div className="flex items-center justify-between gap-3 pt-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={() => setStep(0)}
-          className="px-4 py-2.5 rounded-xl border border-[var(--border-card)] bg-[var(--card-bg)] text-xs font-mono text-[var(--text-muted)] hover:text-white transition flex items-center gap-2 cursor-pointer"
+          className="rounded-full gap-2 text-xs font-mono"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="size-3.5" />
           <span>Back: File Ingestion</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="gold"
+          size="pill"
           onClick={() => setStep(2)}
           disabled={selectedProducts.length === 0 || hasIneligible}
           title={
@@ -285,11 +290,11 @@ export const StoneXStep1Products: React.FC = () => {
               ? `Cannot proceed: [${ineligibleSelectedProducts.join(', ')}] ${ineligibleSelectedProducts.length > 1 ? 'have' : 'has'} 0 net-zero contracts.`
               : undefined
           }
-          className="px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center gap-2 bg-[var(--accent-gold)] text-black hover:opacity-95 shadow-md transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+          className="gap-2 font-bold text-xs"
         >
           <span>Next: Select Contracts ({selectedProducts.length} Selected)</span>
-          <ArrowRight className="w-4 h-4" />
-        </button>
+          <ArrowRight className="size-3.5" />
+        </Button>
       </div>
     </div>
   );

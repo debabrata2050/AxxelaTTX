@@ -2,6 +2,15 @@
 
 import React from 'react';
 import { AlertTriangle } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -24,47 +33,52 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   onConfirm,
   onCancel,
 }) => {
-  if (!isOpen) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity" onClick={onCancel} />
-
-      {/* Modal Card */}
-      <div className="relative w-full max-w-md bg-[var(--card-bg)] border border-[var(--border-card)] rounded-2xl shadow-2xl p-6 space-y-4 z-50 animate-in fade-in zoom-in-95 duration-150">
-        <div className="flex items-start gap-3">
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onCancel()}>
+      <DialogContent className="max-w-md p-6">
+        <DialogHeader className="gap-3 sm:flex-row sm:items-start text-left">
           <div
-            className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
-              isDestructive ? 'bg-red-500/15 text-red-400' : 'bg-[var(--accent-gold)]/15 text-[var(--accent-gold)]'
+            className={`size-10 rounded-xl flex items-center justify-center shrink-0 ${
+              isDestructive
+                ? 'bg-destructive/15 text-destructive'
+                : 'bg-primary/15 text-primary'
             }`}
           >
-            <AlertTriangle className="w-5 h-5" />
+            <AlertTriangle className="size-5" />
           </div>
-          <div>
-            <h3 className="text-base font-bold text-[var(--text-main)]">{title}</h3>
-            <p className="text-xs text-[var(--text-muted)] mt-1 leading-relaxed whitespace-pre-line">{message}</p>
+          <div className="flex flex-col gap-1 min-w-0">
+            <DialogTitle className="text-base font-bold text-foreground">
+              {title}
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
+              {message}
+            </DialogDescription>
           </div>
-        </div>
+        </DialogHeader>
 
-        <div className="flex items-center justify-end gap-3 pt-3 border-t border-[var(--border-subtle)]">
+        <DialogFooter className="gap-2 sm:gap-2.5 pt-4 border-t border-border">
           {cancelLabel && (
-            <button onClick={onCancel} className="pill-btn-secondary text-xs py-2 px-4 cursor-pointer">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancel}
+              className="rounded-full px-4"
+            >
               {cancelLabel}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
+            type="button"
+            variant={isDestructive ? 'destructive' : 'gold'}
+            size="sm"
             onClick={onConfirm}
-            className={
-              isDestructive
-                ? 'btn-gradient-danger text-xs py-2 px-4 cursor-pointer'
-                : 'pill-btn-primary text-xs py-2 px-4 cursor-pointer'
-            }
+            className="rounded-full px-5"
           >
             {confirmLabel}
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

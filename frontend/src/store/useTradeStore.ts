@@ -114,6 +114,7 @@ interface TradeState {
 
   addRoute: (from: string, to: string) => boolean;
   removeRoute: (index: number) => void;
+  clearRoutes: () => void;
 
   setContracts: (contracts: ContractItem[]) => void;
   setSelectedProduct: (prod: ProductType) => void;
@@ -151,6 +152,95 @@ interface TradeState {
 }
 
 const STORAGE_KEY = 'axxela_trade_wizard_session';
+
+function extractAccountFromKey(
+  key: string,
+  allLoaded: Record<string, ContractItem>,
+  contracts: ContractItem[]
+): string | null {
+  if (allLoaded[key]?.account) {
+    return allLoaded[key].account.toUpperCase();
+  }
+  const item = contracts.find(
+    (c) =>
+      (c.contract_key ||
+        (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode)) === key
+  );
+  if (item?.account) return item.account.toUpperCase();
+  if (key.includes('::')) return key.split('::')[0].trim().toUpperCase();
+  return null;
+}
+
+function pruneOrphanedState(remainingRoutes: TransferRoute[], state: TradeState) {
+  const activeSenders = new Set(remainingRoutes.map((r) => r.from.trim().toUpperCase()));
+
+  if (activeSenders.size === 0) {
+    return {
+      routes: [],
+      contracts: [],
+      allLoadedContracts: {},
+      selectedContracts: [],
+      selectedSenderAccount: 'ALL',
+      trades: [],
+      allocations: {},
+      previewRows: [],
+      previewSummary: null,
+    };
+  }
+
+  // Filter selectedContracts: only keep contracts belonging to active route senders
+  const cleanedSelectedContracts = state.selectedContracts.filter((key) => {
+    const acc = extractAccountFromKey(key, state.allLoadedContracts, state.contracts);
+    return acc ? activeSenders.has(acc) : false;
+  });
+
+  // Filter allLoadedContracts
+  const cleanedLoadedContracts: Record<string, ContractItem> = {};
+  Object.entries(state.allLoadedContracts).forEach(([k, c]) => {
+    const acc = (c.account || (k.includes('::') ? k.split('::')[0] : '')).trim().toUpperCase();
+    if (acc && activeSenders.has(acc)) {
+      cleanedLoadedContracts[k] = c;
+    }
+  });
+
+  // Filter visible contracts
+  const cleanedContracts = state.contracts.filter((c) => {
+    const acc = String(c.account || '').trim().toUpperCase();
+    return !acc || activeSenders.has(acc);
+  });
+
+  // Filter trades
+  const cleanedTrades = state.trades.filter((t) => {
+    const acc = String(t.account || '').trim().toUpperCase();
+    return !acc || activeSenders.has(acc);
+  });
+
+  // Filter allocations
+  const validTradeIds = new Set(cleanedTrades.map((t) => t.row_id));
+  const cleanedAllocations: Record<string, TradeAllocation> = {};
+  Object.keys(state.allocations).forEach((rid) => {
+    if (validTradeIds.has(rid)) {
+      cleanedAllocations[rid] = state.allocations[rid];
+    }
+  });
+
+  // Reset selectedSenderAccount if deleted
+  const nextSelectedSender =
+    state.selectedSenderAccount !== 'ALL' &&
+    !activeSenders.has(state.selectedSenderAccount.trim().toUpperCase())
+      ? 'ALL'
+      : state.selectedSenderAccount;
+
+  return {
+    routes: remainingRoutes,
+    contracts: cleanedContracts,
+    allLoadedContracts: cleanedLoadedContracts,
+    selectedContracts: cleanedSelectedContracts,
+    selectedSenderAccount: nextSelectedSender,
+    trades: cleanedTrades,
+    allocations: cleanedAllocations,
+  };
+}
 
 export const useTradeStore = create<TradeState>((set, get) => ({
   theme: 'dark',
@@ -216,9 +306,16 @@ export const useTradeStore = create<TradeState>((set, get) => ({
 
   setTheme: (theme) => {
     if (typeof window !== 'undefined') {
-      document.documentElement.classList.toggle('light', theme === 'light');
+      const isDark = theme === 'dark';
+      document.documentElement.classList.toggle('dark', isDark);
+      document.documentElement.classList.toggle('light', !isDark);
       document.documentElement.setAttribute('data-theme', theme);
-      localStorage.setItem('trade_theme', theme);
+      document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+      try {
+        localStorage.setItem('trade_theme', theme);
+      } catch {
+        // Storage throws in private browsing
+      }
     }
     set({ theme });
   },
@@ -231,7 +328,9 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   setStep: (step) =>
     set((state) => {
       const isBackward = step < state.currentStep;
+      const sanitized = step <= 2 ? pruneOrphanedState(state.routes, state) : {};
       return {
+        ...sanitized,
         currentStep: step,
         isMobileDrawerOpen: false,
         ...(isBackward && state.previewRows.length > 0 ? { previewRows: [], previewSummary: null } : {}),
@@ -299,9 +398,13 @@ export const useTradeStore = create<TradeState>((set, get) => ({
   },
 
   removeRoute: (index) =>
-    set((state) => ({
-      routes: state.routes.filter((_, i) => i !== index),
-    })),
+    set((state) => {
+      const remainingRoutes = state.routes.filter((_, i) => i !== index);
+      return pruneOrphanedState(remainingRoutes, state);
+    }),
+
+  clearRoutes: () =>
+    set((state) => pruneOrphanedState([], state)),
 
   setContracts: (contracts) =>
     set((state) => {
@@ -315,18 +418,22 @@ export const useTradeStore = create<TradeState>((set, get) => ({
         }
       });
 
-      // Edge case 6: Clean allocations for contracts that are no longer part of active list
-      const validCodes = new Set(contracts.map((c) => c.contractcode || c.contract_id));
-      const validTrades = state.trades.filter((t) => validCodes.has(t.contractcode));
-      const validTradeIds = new Set(validTrades.map((t) => t.row_id));
-      const filteredAlloc: Record<string, TradeAllocation> = {};
-      Object.keys(state.allocations).forEach((rid) => {
-        if (validTradeIds.has(rid)) {
-          filteredAlloc[rid] = state.allocations[rid];
-        }
-      });
+      const activeSenders = new Set(state.routes.map((r) => r.from.trim().toUpperCase()));
+      const cleanedSelected =
+        state.currentStep > 2
+          ? state.selectedContracts
+          : activeSenders.size > 0
+          ? state.selectedContracts.filter((key) => {
+              const acc = extractAccountFromKey(key, nextMap, contracts);
+              return acc ? activeSenders.has(acc) : false;
+            })
+          : [];
 
-      return { contracts, allLoadedContracts: nextMap, trades: validTrades, allocations: filteredAlloc };
+      return {
+        contracts,
+        allLoadedContracts: nextMap,
+        selectedContracts: cleanedSelected,
+      };
     }),
 
   setOutputMode: (mode) => set({ outputMode: mode }),
@@ -348,28 +455,33 @@ export const useTradeStore = create<TradeState>((set, get) => ({
     }),
 
   selectAllContracts: () =>
-    set((state) => ({
-      selectedContracts: state.contracts.map(
-        (c) =>
-          c.contract_key ||
-          (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode)
-      ),
-    })),
-
-  clearAllContracts: () =>
     set((state) => {
-      const visibleIds = state.contracts.map(
+      const visibleKeys = state.contracts.map(
         (c) =>
           c.contract_key ||
           (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode)
       );
-      const anySelected = visibleIds.some((id) => state.selectedContracts.includes(id));
-      if (anySelected) {
-        return {
-          selectedContracts: state.selectedContracts.filter((id) => !visibleIds.includes(id)),
-        };
+      const combined = Array.from(new Set([...state.selectedContracts, ...visibleKeys]));
+      return { selectedContracts: combined };
+    }),
+
+  clearAllContracts: () =>
+    set((state) => {
+      const visibleIds = new Set(
+        state.contracts.map(
+          (c) =>
+            c.contract_key ||
+            (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode)
+        )
+      );
+      const isGlobalView =
+        state.selectedSenderAccount === 'ALL' && state.selectedProduct === 'ALL' && !state.contractSearchQuery;
+      if (isGlobalView) {
+        return { selectedContracts: [] };
       }
-      return { selectedContracts: [] };
+      return {
+        selectedContracts: state.selectedContracts.filter((id) => !visibleIds.has(id)),
+      };
     }),
 
   setTrades: (trades) =>

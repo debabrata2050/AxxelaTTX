@@ -1,7 +1,10 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { UploadCloud, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 
 interface FileDropzoneProps {
   onFileSelect: (file: File) => void;
@@ -44,18 +47,21 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
   };
 
   return (
-    <div
+    <Card
       onClick={() => {
         if (!isLoading) fileInputRef.current?.click();
       }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`p-8 sm:p-10 rounded-2xl border-2 border-dashed transition-all cursor-pointer group text-center shadow-sm select-none ${
+      className={cn(
+        'p-8 sm:p-10 rounded-2xl border-2 border-dashed transition-all cursor-pointer group text-center shadow-xs select-none',
         isDragging
-          ? 'border-[var(--accent-gold)] bg-[var(--accent-gold)]/5 scale-[1.005]'
-          : 'border-[var(--border-card)] hover:border-[var(--accent-gold)] bg-[var(--card-bg)]'
-      } ${isLoading ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''} ${className}`}
+          ? 'border-primary bg-primary/5 scale-[1.005]'
+          : 'border-border hover:border-primary/60 bg-card/60 hover:bg-card',
+        isLoading && 'opacity-60 cursor-not-allowed pointer-events-none',
+        className
+      )}
     >
       <input
         ref={fileInputRef}
@@ -69,22 +75,24 @@ export const FileDropzone: React.FC<FileDropzoneProps> = ({
           }
         }}
       />
-      <div className="w-14 h-14 mx-auto mb-3.5 rounded-2xl bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] flex items-center justify-center group-hover:scale-110 transition duration-300">
+      <div className="size-14 mx-auto mb-3.5 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition duration-300 shadow-inner">
         {isLoading ? (
-          <Loader2 className="w-7 h-7 animate-spin" />
+          <Loader2 className="size-7 animate-spin" />
         ) : (
-          <UploadCloud className="w-7 h-7" />
+          <UploadCloud className="size-7" />
         )}
       </div>
-      <h3 className="text-base font-bold text-[var(--text-main)]">{title}</h3>
-      <p className="text-xs text-[var(--text-muted)] mt-1 max-w-lg mx-auto">{subtitle}</p>
+      <h3 className="text-base font-bold text-foreground">{title}</h3>
+      <p className="text-xs text-muted-foreground mt-1 max-w-lg mx-auto leading-relaxed">
+        {subtitle}
+      </p>
       {badgeText && (
-        <div className="mt-3 flex items-center justify-center">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--border-card)] text-[11px] font-mono font-medium text-[var(--accent-gold)]">
+        <div className="mt-3.5 flex items-center justify-center">
+          <Badge variant="gold" className="px-3 py-1 text-xs">
             {badgeText}
-          </span>
+          </Badge>
         </div>
       )}
-    </div>
+    </Card>
   );
 };

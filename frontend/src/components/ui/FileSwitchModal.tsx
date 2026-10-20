@@ -14,6 +14,10 @@ import {
   AlertTriangle,
   RefreshCw,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 interface FileSwitchModalProps {
   isOpen: boolean;
@@ -131,12 +135,12 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
       setTimeout(() => {
         hideLoading();
         setActiveFile({
-          filePath: f.path,
-          filename: f.name,
-          clientGroup: res.client_group || 'SYM',
-          date: res.default_date || '',
-          accounts: res.accounts || [],
-          recordCount: res.total_records || res.total_rows || 0,
+          filePath: res.filepath,
+          filename: res.filename,
+          clientGroup: res.client_group,
+          date: res.default_date ?? undefined,
+          accounts: res.accounts,
+          recordCount: res.total_records,
           sessionId: res.session_id,
         });
       }, 350);
@@ -151,16 +155,8 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
   };
 
   const executeFileUpload = async (file: File) => {
-    if (file.size > 500 * 1024 * 1024) {
-      showAlert(
-        'File Exceeds Limit',
-        `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum limit of 500MB.`
-      );
-      return;
-    }
-
     onClose();
-    showLoadingSteps('Uploading & Processing CSV', file.name, FILE_PROCESSING_STEPS);
+    showLoadingSteps('Uploading CSV File', file.name, FILE_PROCESSING_STEPS);
 
     let stage = 0;
     const timer = setInterval(() => {
@@ -177,7 +173,7 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
         updateLoadingStep(3, 'in_progress');
         stage = 3;
       }
-    }, 280);
+    }, 250);
 
     try {
       const res = await apiClient.uploadFile(file);
@@ -187,7 +183,7 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
         updateLoadingStep(stage, 'error');
         setTimeout(() => {
           hideLoading();
-          showAlert('Upload Failed', res.error || 'Failed to parse file.');
+          showAlert('Upload Failed', res.error || 'Invalid trade file format.');
         }, 500);
         return;
       }
@@ -252,44 +248,44 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
       />
 
       {/* Modal Dialog */}
-      <div className="relative w-full max-w-2xl max-h-[90vh] bg-[var(--card-bg)] border border-[var(--border-card)] shadow-2xl rounded-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
+      <div className="relative w-full max-w-2xl max-h-[90vh] bg-card border border-border shadow-2xl rounded-2xl flex flex-col overflow-hidden z-10 animate-in fade-in zoom-in-95 duration-200">
         {/* Header */}
-        <div className="p-4 sm:p-5 border-b border-[var(--border-subtle)] flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] flex items-center justify-center flex-shrink-0">
-              <FileText className="w-4 h-4" />
+        <div className="p-4 sm:p-5 border-b border-border flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="size-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+              <FileText className="size-4.5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-[var(--text-main)]">
+              <h3 className="text-base font-bold text-foreground">
                 Switch Active Trade File
               </h3>
-              <p className="text-xs text-[var(--text-muted)]">
+              <p className="text-xs text-muted-foreground">
                 Select an existing CSV in your workspace or import a new file.
               </p>
             </div>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-white hover:bg-white/5 transition cursor-pointer"
+            className="text-muted-foreground hover:text-foreground"
           >
-            <X className="w-5 h-5" />
-          </button>
+            <X className="size-4" />
+          </Button>
         </div>
 
         {/* Content Body */}
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 space-y-5">
           {/* Active File Banner */}
           {activeFilename && (
-            <div className="px-3.5 py-2.5 rounded-xl bg-[var(--input-bg)] border border-[var(--border-card)] flex items-center justify-between text-xs font-mono">
+            <div className="px-3.5 py-2.5 rounded-xl bg-input border border-border flex items-center justify-between text-xs font-mono">
               <div className="flex items-center gap-2 truncate">
-                <span className="text-[var(--text-muted)]">Current:</span>
-                <span className="font-bold text-[var(--accent-gold)] truncate">
+                <span className="text-muted-foreground">Current:</span>
+                <span className="font-bold text-primary truncate">
                   {activeFilename}
                 </span>
               </div>
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold flex-shrink-0">
-                Active
-              </span>
+              <Badge variant="emerald">Active</Badge>
             </div>
           )}
 
@@ -297,12 +293,12 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
           {pendingTarget && (
             <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs space-y-3">
               <div className="flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <AlertTriangle className="size-4 shrink-0 mt-0.5" />
                 <div>
                   <div className="font-bold">Switching File Will Reset Workspace</div>
                   <p className="text-[11px] text-amber-200/80 mt-0.5">
                     You have configured routes or allocations. Switching to{' '}
-                    <strong className="text-white">
+                    <strong className="text-foreground">
                       {pendingTarget.name}
                     </strong>{' '}
                     will reset current transfer routes and lot allocations.
@@ -310,15 +306,18 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
                 </div>
               </div>
               <div className="flex items-center justify-end gap-2 pt-1">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="sm"
                   onClick={() => setPendingTarget(null)}
-                  className="px-3 py-1 rounded-lg text-xs font-medium text-[var(--text-sub)] hover:text-white cursor-pointer"
                 >
                   Cancel
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="gold"
+                  size="sm"
                   onClick={() => {
                     const target = pendingTarget;
                     setPendingTarget(null);
@@ -328,10 +327,9 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
                       executeFileUpload(target);
                     }
                   }}
-                  className="px-3 py-1 rounded-lg text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition cursor-pointer"
                 >
                   Yes, Switch File
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -346,7 +344,7 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
                 handleUploadRequest(e.dataTransfer.files[0]);
               }
             }}
-            className="p-6 rounded-xl border-2 border-dashed border-[var(--border-card)] hover:border-[var(--accent-gold)] bg-[var(--input-bg)] text-center cursor-pointer transition group"
+            className="p-6 rounded-xl border-2 border-dashed border-border hover:border-primary bg-input/40 text-center cursor-pointer transition group"
           >
             <input
               ref={fileInputRef}
@@ -359,54 +357,53 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
                 }
               }}
             />
-            <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] flex items-center justify-center group-hover:scale-110 transition">
-              <UploadCloud className="w-5 h-5" />
+            <div className="size-10 mx-auto mb-2 rounded-xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition">
+              <UploadCloud className="size-5" />
             </div>
-            <div className="text-xs font-bold text-[var(--text-main)]">
+            <div className="text-xs font-bold text-foreground">
               Drop new CSV file here or click to browse
             </div>
-            {/* Mention File Size Limit explicitly */}
             <div className="mt-2 flex items-center justify-center gap-2">
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-[var(--card-bg)] border border-[var(--border-card)] text-[10px] font-mono font-medium text-[var(--accent-gold)]">
+              <Badge variant="gold" className="text-[10px]">
                 Max File Size: 500MB • UTF-8 CSV
-              </span>
+              </Badge>
             </div>
           </div>
 
           {/* Available Workspace CSV Files List */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
-                <HardDrive className="w-3.5 h-3.5 text-[var(--accent-gold)]" />
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                <HardDrive className="size-3.5 text-primary" />
                 <span>Available In Workspace ({files.length})</span>
               </div>
               <button
                 type="button"
                 onClick={fetchFiles}
                 disabled={isRefreshing}
-                className="text-[11px] text-[var(--accent-gold)] hover:underline flex items-center gap-1 cursor-pointer"
+                className="text-[11px] text-primary hover:underline flex items-center gap-1 cursor-pointer"
               >
-                <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <RefreshCw className={cn('size-3', isRefreshing && 'animate-spin')} />
                 <span>Refresh</span>
               </button>
             </div>
 
             {/* Filter Input */}
             <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 type="text"
                 placeholder="Filter files..."
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--border-card)] text-xs font-mono text-[var(--text-main)] outline-none focus:border-[var(--accent-gold)]"
+                className="pl-8"
               />
             </div>
 
             {/* Files List */}
             <div className="max-h-52 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs">
               {filteredFiles.length === 0 ? (
-                <div className="p-4 text-center text-xs text-[var(--text-muted)]">
+                <div className="p-4 text-center text-xs text-muted-foreground">
                   No CSV files found matching &quot;{filterQuery}&quot;
                 </div>
               ) : (
@@ -416,26 +413,27 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
                     <div
                       key={f.path}
                       onClick={() => handleSelectRequest(f)}
-                      className={`p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition ${
+                      className={cn(
+                        'p-2.5 rounded-xl border flex items-center justify-between gap-3 cursor-pointer transition',
                         isActive
-                          ? 'bg-[var(--accent-gold)]/10 border-[var(--accent-gold)] text-[var(--accent-gold)] font-bold'
-                          : 'bg-[var(--input-bg)] border-[var(--border-card)] hover:border-[var(--accent-gold)]/50 text-[var(--text-main)]'
-                      }`}
+                          ? 'bg-primary/10 border-primary text-primary font-bold'
+                          : 'bg-input/60 border-border hover:border-primary/50 text-foreground'
+                      )}
                     >
                       <div className="flex items-center gap-2 truncate">
-                        <FileText className="w-3.5 h-3.5 flex-shrink-0 text-[var(--accent-gold)]" />
+                        <FileText className="size-3.5 shrink-0 text-primary" />
                         <span className="truncate">{f.name}</span>
                       </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        <span className="text-[10px] text-[var(--text-muted)]">
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] text-muted-foreground">
                           {f.size_mb} MB
                         </span>
                         {isActive ? (
-                          <CheckCircle className="w-4 h-4 text-[var(--accent-gold)]" />
+                          <CheckCircle className="size-4 text-primary" />
                         ) : (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-white/5 hover:bg-[var(--accent-gold)] hover:text-black transition">
+                          <Button variant="gold" size="sm" className="h-6 px-3 text-[10px] font-bold">
                             Select
-                          </span>
+                          </Button>
                         )}
                       </div>
                     </div>
@@ -447,16 +445,13 @@ export const FileSwitchModal: React.FC<FileSwitchModalProps> = ({ isOpen, onClos
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-[var(--border-subtle)] flex items-center justify-between text-xs">
-          <span className="text-[11px] text-[var(--text-muted)]">
+        <div className="p-4 border-t border-border flex items-center justify-between text-xs">
+          <span className="text-[11px] text-muted-foreground">
             Zero-copy local reader active
           </span>
-          <button
-            onClick={onClose}
-            className="px-4 py-1.5 rounded-lg border border-[var(--border-card)] text-[var(--text-sub)] hover:text-white hover:bg-white/5 transition cursor-pointer"
-          >
+          <Button variant="outline" size="sm" onClick={onClose}>
             Close
-          </button>
+          </Button>
         </div>
       </div>
     </div>

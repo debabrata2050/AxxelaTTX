@@ -37,6 +37,7 @@ def get_trades():
     product = data.get("product", "ALL")
     limit = data.get("limit")
     offset = data.get("offset", 0)
+    force_refresh = bool(data.get("force_refresh", False))
 
     trades = svc.get_trades(
         accounts=accounts,
@@ -44,6 +45,7 @@ def get_trades():
         contract_codes=contract_codes,
         product=product,
         limit=limit,
-        offset=offset
+        offset=offset,
+        force_refresh=force_refresh
     )
     return jsonify({"trades": trades, "count": len(trades)})

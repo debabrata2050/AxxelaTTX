@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   X,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const Step4PreviewExport: React.FC = () => {
   const {
@@ -439,7 +440,7 @@ export const Step4PreviewExport: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setExportFilename('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-foreground"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -451,18 +452,27 @@ export const Step4PreviewExport: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            <button
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setShowResetConfirm(true)}
-              className="btn-gradient-danger text-xs"
+              className="rounded-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/30"
               title="Reset everything and start with a new CSV file"
             >
-              <RotateCcw className="w-4 h-4 text-red-400" />
+              <RotateCcw className="size-3.5 text-destructive" />
               <span>Start With New File</span>
-            </button>
-            <button onClick={handleDownloadExcel} className="pill-btn-primary text-xs">
-              <Download className="w-4 h-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="gold"
+              size="sm"
+              onClick={handleDownloadExcel}
+              className="rounded-full text-xs font-bold"
+            >
+              <Download className="size-3.5" />
               <span>Download Formatted Excel (.xlsx)</span>
-            </button>
+            </Button>
           </div>
         </div>
       </div>

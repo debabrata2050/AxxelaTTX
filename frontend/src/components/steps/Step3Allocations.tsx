@@ -1,10 +1,22 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useTradeStore } from '@/store/useTradeStore';
 import { apiClient } from '@/lib/apiClient';
 import { PriceMode } from '@/types/trade.types';
-import { ArrowRight, DollarSign, Calculator, Sliders, TrendingUp, Scale } from 'lucide-react';
+import {
+  ArrowRight,
+  DollarSign,
+  Calculator,
+  Sliders,
+  TrendingUp,
+  Scale,
+  Database,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const Step3Allocations: React.FC = () => {
   const {
@@ -26,36 +38,74 @@ export const Step3Allocations: React.FC = () => {
     showAlert,
   } = useTradeStore();
 
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [retryAttempt, setRetryAttempt] = useState<number>(0);
+  const latestFetchId = useRef(0);
 
-  useEffect(() => {
-    let isMounted = true;
-    const loadTrades = async () => {
-      if (useTradeStore.getState().trades.length === 0) {
-        setIsLoading(true);
-      }
+  const executeFetch = async (forceRefresh = false) => {
+    const fetchId = ++latestFetchId.current;
+    setIsLoading(true);
+    setFetchError(null);
+    setRetryAttempt(0);
+
+    const accounts = Array.from(new Set(routes.map((r) => r.from.trim().toUpperCase())));
+    const contractsToQuery = [...selectedContracts];
+    const prod = contractsToQuery.length > 0 ? 'ALL' : selectedProduct;
+
+    const maxAttempts = 3;
+    let attempt = 0;
+    let success = false;
+    let lastError: any = null;
+
+    while (attempt < maxAttempts) {
+      if (fetchId !== latestFetchId.current) return;
+      attempt++;
+      setRetryAttempt(attempt);
+
       try {
-        const accounts = routes.map((r) => r.from);
-        const data = await apiClient.getTrades(
-          accounts,
-          selectedContracts,
-          selectedContracts.length > 0 ? 'ALL' : selectedProduct
-        );
-        if (isMounted) {
+        const isBypass = forceRefresh || attempt > 1;
+        const data = await apiClient.getTrades(accounts, contractsToQuery, prod, undefined, undefined, isBypass);
+
+        if (fetchId !== latestFetchId.current) return;
+
+        // If trades returned or no contracts selected, query was complete
+        if ((data.trades && data.trades.length > 0) || contractsToQuery.length === 0) {
           setTrades(data.trades || []);
+          setFetchError(null);
+          success = true;
+          break;
+        }
+
+        // If returned 0 trades but contracts are selected, retry with delay
+        if (attempt < maxAttempts) {
+          await new Promise((res) => setTimeout(res, attempt === 1 ? 600 : 1200));
+        } else {
+          setTrades([]);
+          success = true;
+          break;
         }
       } catch (err: any) {
-        console.error(err);
-      } finally {
-        if (isMounted) setIsLoading(false);
+        lastError = err;
+        console.warn(`getTrades attempt ${attempt} failed:`, err);
+        if (attempt < maxAttempts) {
+          await new Promise((res) => setTimeout(res, attempt === 1 ? 600 : 1200));
+        }
       }
-    };
+    }
 
-    loadTrades();
-    return () => {
-      isMounted = false;
-    };
-  }, [routes, selectedContracts, selectedProduct, setTrades]);
+    if (fetchId === latestFetchId.current) {
+      if (!success && lastError) {
+        setFetchError(lastError.message || 'Failed to query trade executions from backend.');
+      }
+      setIsLoading(false);
+      setRetryAttempt(0);
+    }
+  };
+
+  useEffect(() => {
+    executeFetch(false);
+  }, [routes, selectedContracts, selectedProduct]);
 
   const { totalLots, totalActiveTrades } = useMemo(() => {
     let lots = 0;
@@ -193,29 +243,13 @@ export const Step3Allocations: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
-            Step 3: Pricing Strategy & Lot Allocation
-          </h2>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Choose pricing logic and fine-tune lots transferred per individual trade row.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button onClick={() => setStep(2)} className="pill-btn-secondary text-xs">
-            Back
-          </button>
-          <button
-            onClick={handleProceedToPreview}
-            disabled={totalLots <= 0}
-            className="pill-btn-primary text-xs disabled:opacity-40"
-          >
-            <span>Next: Review Preview</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
+          Step 3: Pricing Strategy & Lot Allocation
+        </h2>
+        <p className="text-sm text-[var(--text-muted)] mt-1">
+          Choose pricing logic and fine-tune lots transferred per individual trade row.
+        </p>
       </div>
 
       {/* Pricing Strategy Cards */}
@@ -356,12 +390,24 @@ export const Step3Allocations: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <button onClick={fillAllBalances} className="btn-action text-xs px-3.5 py-1.5 rounded-lg font-bold">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={fillAllBalances}
+              className="text-xs px-3.5 py-1.5 font-bold"
+            >
               Transfer Full Balance
-            </button>
-            <button onClick={resetAllocations} className="btn-action text-xs px-3.5 py-1.5 rounded-lg font-bold">
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={resetAllocations}
+              className="text-xs px-3.5 py-1.5 font-bold"
+            >
               Reset
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -416,7 +462,7 @@ export const Step3Allocations: React.FC = () => {
               onClick={() => setSenderTab('ALL')}
               className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium transition cursor-pointer ${senderTab === 'ALL'
                   ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
-                  : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-white'
+                  : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-foreground hover:bg-muted'
                 }`}
             >
               All Trades ({trades.length} trds • {totalLots.toLocaleString()} lots)
@@ -430,7 +476,7 @@ export const Step3Allocations: React.FC = () => {
                   onClick={() => setSenderTab(acc)}
                   className={`px-3 py-1.5 rounded-xl text-xs font-mono font-medium flex items-center gap-1.5 transition cursor-pointer ${isAct
                       ? 'bg-[var(--accent-gold)] text-black font-bold shadow-sm'
-                      : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-white'
+                      : 'bg-[var(--input-bg)] border border-[var(--border-card)] text-[var(--text-sub)] hover:text-foreground hover:bg-muted'
                     }`}
                 >
                   <span className={isAct ? 'text-black font-bold' : 'text-red-400 font-bold'}>
@@ -482,14 +528,85 @@ export const Step3Allocations: React.FC = () => {
             <tbody className="divide-y divide-[var(--border-subtle)] font-mono">
               {isLoading ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-[var(--text-muted)]">
-                    Loading trades...
+                  <td colSpan={11} className="py-20 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3">
+                      <div className="relative">
+                        <div className="w-10 h-10 rounded-full border-3 border-[var(--accent-gold)]/20 border-t-[var(--accent-gold)] animate-spin" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-[var(--text-main)]">
+                          {retryAttempt > 1 ? 'Retrying Trade Query...' : 'Loading Trade Allocations...'}
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)] font-mono">
+                          {retryAttempt > 1
+                            ? `Resolving institutional records (attempt ${retryAttempt} of 3)...`
+                            : `Querying trades for ${selectedContracts.length} selected contract${selectedContracts.length > 1 ? 's' : ''}...`}
+                        </p>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              ) : fetchError ? (
+                <tr>
+                  <td colSpan={11} className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3 max-w-md mx-auto p-6 rounded-2xl bg-red-500/5 border border-red-500/20">
+                      <div className="w-10 h-10 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-400">
+                        <AlertCircle className="w-5 h-5" />
+                      </div>
+                      <div className="space-y-1 text-center">
+                        <p className="text-sm font-semibold text-[var(--text-main)]">
+                          Failed to Retrieve Trade Records
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                          {fetchError}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-3 mt-2">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => setStep(2)}
+                          className="text-xs cursor-pointer"
+                        >
+                          Back to Step 2
+                        </Button>
+                        <Button
+                          variant="gold"
+                          size="sm"
+                          onClick={() => executeFetch(true)}
+                          className="gap-1.5 text-xs cursor-pointer"
+                        >
+                          <RefreshCw className="w-3.5 h-3.5" />
+                          <span>Retry Query</span>
+                        </Button>
+                      </div>
+                    </div>
                   </td>
                 </tr>
               ) : visibleTrades.length === 0 ? (
                 <tr>
-                  <td colSpan={11} className="py-12 text-center text-[var(--text-muted)]">
-                    No matching trades found for selected contracts.
+                  <td colSpan={11} className="py-20 text-center">
+                    <div className="flex flex-col items-center justify-center gap-3 max-w-sm mx-auto">
+                      <div className="w-10 h-10 rounded-full bg-white/5 border border-[var(--border-card)] flex items-center justify-center text-[var(--text-muted)]">
+                        <Database className="w-5 h-5 opacity-60" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="text-sm font-semibold text-[var(--text-main)]">
+                          No Data Available
+                        </p>
+                        <p className="text-xs text-[var(--text-muted)] leading-relaxed">
+                          No trade records match the selected contract criteria in this file. Try selecting additional contracts in Step 2.
+                        </p>
+                      </div>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => setStep(2)}
+                        className="mt-2 text-xs cursor-pointer"
+                      >
+                        Modify Contracts in Step 2
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               ) : (
@@ -681,11 +798,22 @@ export const Step3Allocations: React.FC = () => {
         <div className="flex flex-col sm:flex-row justify-between items-center gap-3 text-xs font-mono text-[var(--text-muted)] px-1 pt-1">
           <div className="flex items-center gap-4">
             <div>
-              Active Trades: <strong className="text-[var(--text-main)]">{totalActiveTrades}</strong> of {visibleTrades.length}
+              Active Trades:{' '}
+              {isLoading ? (
+                <span className="text-[var(--text-muted)] animate-pulse">Loading...</span>
+              ) : (
+                <>
+                  <strong className="text-[var(--text-main)]">{totalActiveTrades}</strong> of {visibleTrades.length}
+                </>
+              )}
             </div>
             <div>
               Transfer Lots Total:{' '}
-              <strong className="text-[var(--accent-gold)] font-bold">{totalLots.toLocaleString()} Lots</strong>
+              {isLoading ? (
+                <span className="text-[var(--text-muted)] animate-pulse">Calculating...</span>
+              ) : (
+                <strong className="text-[var(--accent-gold)] font-bold">{totalLots.toLocaleString()} Lots</strong>
+              )}
             </div>
           </div>
 

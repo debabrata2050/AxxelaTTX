@@ -344,17 +344,21 @@ class DuckStore:
                     s = str(item).strip()
                     if "::" in s:
                         acc_p, cid_p = s.split("::", 1)
-                        pair_clauses.append("(UPPER(__account__) = ? AND UPPER(__contract_id__) = ?)")
-                        params.extend([acc_p.strip().upper(), cid_p.strip().upper()])
+                        pair_clauses.append("(UPPER(TRIM(__account__)) = ? AND (UPPER(TRIM(__contract_id__)) = ? OR UPPER(TRIM(contractcode)) = ?))")
+                        params.extend([acc_p.strip().upper(), cid_p.strip().upper(), cid_p.strip().upper()])
                     else:
-                        pair_clauses.append("UPPER(__contract_id__) = ?")
-                        params.append(s.upper())
+                        pair_clauses.append("(UPPER(TRIM(__contract_id__)) = ? OR UPPER(TRIM(contractcode)) = ?)")
+                        params.extend([s.upper(), s.upper()])
                 if pair_clauses:
                     clauses.append("(" + " OR ".join(pair_clauses) + ")")
             else:
-                placeholders = ",".join(["?"] * len(contract_ids))
-                clauses.append(f"UPPER(__contract_id__) IN ({placeholders})")
-                params.extend([c.strip().upper() for c in contract_ids if c.strip()])
+                pair_clauses = []
+                for c in contract_ids:
+                    if str(c).strip():
+                        pair_clauses.append("(UPPER(TRIM(__contract_id__)) = ? OR UPPER(TRIM(contractcode)) = ?)")
+                        params.extend([str(c).strip().upper(), str(c).strip().upper()])
+                if pair_clauses:
+                    clauses.append("(" + " OR ".join(pair_clauses) + ")")
 
         elif contract_codes:
             placeholders = ",".join(["?"] * len(contract_codes))

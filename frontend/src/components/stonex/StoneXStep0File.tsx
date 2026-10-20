@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   AlertTriangle,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const StoneXStep0File: React.FC = () => {
   const summary = useStoneXStore((s) => s.summary);
@@ -122,14 +123,16 @@ export const StoneXStep0File: React.FC = () => {
               </span>
             </div>
 
-            <button
+            <Button
               type="button"
+              variant="gold"
+              size="pill"
               onClick={() => setStep(1)}
-              className="px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 bg-[var(--accent-gold)] text-black hover:opacity-95 shadow-md transition cursor-pointer"
+              className="gap-2 font-bold text-xs"
             >
               <span>Next: Select Products</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
+              <ArrowRight className="size-3.5" />
+            </Button>
           </div>
         </div>
       )}

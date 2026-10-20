@@ -30,11 +30,12 @@ export function toggleTheme(
   const root = document.documentElement;
   if (root.dataset.themeTransition === 'active') return;
 
-  const isDark = root.classList.contains('dark') || root.getAttribute('data-theme') === 'dark';
+  const isDark = root.getAttribute('data-theme') === 'dark' || (root.classList.contains('dark') && !root.classList.contains('light'));
+  const nextTheme: 'dark' | 'light' = targetTheme ?? (isDark ? 'light' : 'dark');
+
   if (targetTheme && ((targetTheme === 'dark' && isDark) || (targetTheme === 'light' && !isDark))) {
     return;
   }
-  const nextTheme: 'dark' | 'light' = targetTheme || (isDark ? 'light' : 'dark');
 
   const transitionDocument = document as ViewTransitionDocument;
   if (typeof transitionDocument.startViewTransition === 'function') {
@@ -54,28 +55,41 @@ export function toggleTheme(
     root.style.setProperty('--theme-transition-duration', `${TRANSITION_MS}ms`);
     root.style.setProperty('--theme-transition-clip-from', clipFrom);
 
+    const safetyTimer = window.setTimeout(() => clearThemeTransition(root), TRANSITION_MS + 250);
+
     const transition = transitionDocument.startViewTransition(() => {
       applyTheme(root, nextTheme);
-      onThemeChange?.(nextTheme);
+      try {
+        onThemeChange?.(nextTheme);
+      } catch (err) {
+        console.error('onThemeChange error:', err);
+      }
     });
 
     transition.ready
       .then(() => {
-        root.animate(
-          { clipPath: [clipFrom, clipTo] },
-          {
-            duration: TRANSITION_MS,
-            easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
-            fill: 'forwards',
-            pseudoElement: '::view-transition-new(root)',
-          } as KeyframeAnimationOptions & { pseudoElement: string }
-        );
+        try {
+          root.animate(
+            { clipPath: [clipFrom, clipTo] },
+            {
+              duration: TRANSITION_MS,
+              easing: 'cubic-bezier(0.25, 1, 0.5, 1)',
+              fill: 'forwards',
+              pseudoElement: '::view-transition-new(root)',
+            } as KeyframeAnimationOptions & { pseudoElement: string }
+          );
+        } catch {
+          // Browser does not support pseudoElement in Element.animate
+        }
       })
       .catch(() => undefined);
 
     transition.finished
       .catch(() => undefined)
-      .finally(() => clearThemeTransition(root));
+      .finally(() => {
+        window.clearTimeout(safetyTimer);
+        clearThemeTransition(root);
+      });
     return;
   }
 
@@ -85,7 +99,11 @@ export function toggleTheme(
     delete root.dataset.themeTransition;
   }, TRANSITION_MS);
   applyTheme(root, nextTheme);
-  onThemeChange?.(nextTheme);
+  try {
+    onThemeChange?.(nextTheme);
+  } catch (err) {
+    console.error('onThemeChange error:', err);
+  }
 }
 
 export function applyTheme(root: HTMLElement, theme: 'dark' | 'light') {

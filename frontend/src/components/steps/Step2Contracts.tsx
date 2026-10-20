@@ -12,6 +12,7 @@ import {
   AlertTriangle,
   ArrowRight,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export const Step2Contracts: React.FC = () => {
   const {
@@ -44,26 +45,57 @@ export const Step2Contracts: React.FC = () => {
     return Array.from(new Set(routes.map((r) => r.from)));
   }, [routes]);
 
+  // Sanitize selectedContracts against active routes
+  useEffect(() => {
+    const activeSenders = new Set(routes.map((r) => r.from.trim().toUpperCase()));
+    const store = useTradeStore.getState();
+    const staleContracts = store.selectedContracts.filter((key) => {
+      const acc =
+        store.allLoadedContracts[key]?.account?.toUpperCase() ||
+        (key.includes('::') ? key.split('::')[0].trim().toUpperCase() : null);
+      return acc ? !activeSenders.has(acc) : false;
+    });
+
+    if (staleContracts.length > 0) {
+      useTradeStore.setState({
+        selectedContracts: store.selectedContracts.filter((k) => !staleContracts.includes(k)),
+      });
+    }
+  }, [routes]);
+
   // Eagerly prefetch contracts for all mapped routes so selection counts remain accurate across filters
   useEffect(() => {
+    let isMounted = true;
     const prefetchAll = async () => {
       if (routes.length === 0) return;
       try {
-        const allSenders = Array.from(new Set(routes.map((r) => r.from))).join(',');
+        const activeSenders = new Set(routes.map((r) => r.from.trim().toUpperCase()));
+        const allSenders = Array.from(activeSenders).join(',');
         const data = await apiClient.getContracts(allSenders, 'ALL', '');
-        if (data.contracts) {
+        if (data.contracts && isMounted) {
           const store = useTradeStore.getState();
+          // Drop response if user has moved past Step 2 to prevent race conditions
+          if (store.currentStep !== 2) return;
+
+          // Prune cached contracts belonging to senders no longer in routes
+          const cache: Record<string, any> = {};
+          Object.entries(store.allLoadedContracts).forEach(([k, c]) => {
+            const acc = (c.account || (k.includes('::') ? k.split('::')[0] : '')).trim().toUpperCase();
+            if (acc && activeSenders.has(acc)) {
+              cache[k] = c;
+            }
+          });
+
+          data.contracts.forEach((c: any) => {
+            const k =
+              c.contract_key ||
+              (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode);
+            if (k) cache[k] = c;
+          });
+
           if (!store.selectedSenderAccount || store.selectedSenderAccount === 'ALL') {
             setContracts(data.contracts);
           } else {
-            // Merge into cache without disrupting current filtered view
-            const cache = { ...store.allLoadedContracts };
-            data.contracts.forEach((c: any) => {
-              const k =
-                c.contract_key ||
-                (c.account ? `${c.account}::${c.contract_id || c.contractcode}` : c.contract_id || c.contractcode);
-              if (k) cache[k] = c;
-            });
             useTradeStore.setState({ allLoadedContracts: cache });
           }
         }
@@ -72,6 +104,9 @@ export const Step2Contracts: React.FC = () => {
       }
     };
     prefetchAll();
+    return () => {
+      isMounted = false;
+    };
   }, [routes, setContracts]);
 
   // Load contracts whenever routes, product, or sender filter changes
@@ -94,7 +129,10 @@ export const Step2Contracts: React.FC = () => {
           contractSearchQuery
         );
         if (isMounted) {
-          setContracts(data.contracts || []);
+          // Drop response if user has moved past Step 2
+          if (useTradeStore.getState().currentStep === 2) {
+            setContracts(data.contracts || []);
+          }
         }
       } catch (err: any) {
         console.error(err);
@@ -173,6 +211,13 @@ export const Step2Contracts: React.FC = () => {
     return summary;
   }, [allLoadedContracts, contracts, selectedContracts, uniqueSenders]);
 
+  const currentViewSelectedCount = useMemo(() => {
+    if (selectedSenderAccount === 'ALL') {
+      return selectedContracts.length;
+    }
+    return selectedSummary[selectedSenderAccount.toUpperCase()]?.contracts || 0;
+  }, [selectedSenderAccount, selectedContracts.length, selectedSummary]);
+
   const unfulfilledSenders = useMemo(() => {
     return uniqueSenders.filter((s) => {
       const info = selectedSummary[s.toUpperCase()];
@@ -187,7 +232,19 @@ export const Step2Contracts: React.FC = () => {
   }, [unfulfilledSenders, attemptedProceed]);
 
   const handleProceed = () => {
-    if (selectedContracts.length === 0) {
+    const activeSenders = new Set(uniqueSenders.map((s) => s.toUpperCase()));
+    const validSelections = selectedContracts.filter((key) => {
+      const acc =
+        allLoadedContracts[key]?.account?.toUpperCase() ||
+        (key.includes('::') ? key.split('::')[0].trim().toUpperCase() : null);
+      return acc ? activeSenders.has(acc) : false;
+    });
+
+    if (validSelections.length !== selectedContracts.length) {
+      useTradeStore.setState({ selectedContracts: validSelections });
+    }
+
+    if (validSelections.length === 0) {
       setAttemptedProceed(true);
       showAlert('Contracts Required', 'Please select at least one contract to transfer.');
       return;
@@ -209,32 +266,13 @@ export const Step2Contracts: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
-            Step 2: Filter Products & Contracts
-          </h2>
-          <p className="text-sm text-[var(--text-muted)] mt-1">
-            Select specific financial products and contracts to transfer.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <button onClick={() => setStep(1)} className="pill-btn-secondary text-xs">
-            Back
-          </button>
-          <button
-            onClick={handleProceed}
-            className={`pill-btn-primary text-xs cursor-pointer ${
-              unfulfilledSenders.length > 0 && selectedContracts.length > 0
-                ? 'ring-1 ring-amber-500/50 hover:ring-amber-500'
-                : ''
-            }`}
-          >
-            <span>Next: Lots & Pricing</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+      <div>
+        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
+          Step 2: Filter Products & Contracts
+        </h2>
+        <p className="text-sm text-[var(--text-muted)] mt-1">
+          Select specific financial products and contracts to transfer.
+        </p>
       </div>
 
       {/* Filter Toolbar */}
@@ -247,13 +285,15 @@ export const Step2Contracts: React.FC = () => {
               const label = prod === 'ALL' ? 'All' : prod === 'FUT' ? 'Future' : 'Options';
               const isActive = selectedProduct === prod;
               return (
-                <button
+                <Button
                   key={prod}
+                  variant={isActive ? 'gold' : 'outline'}
+                  size="sm"
                   onClick={() => setSelectedProduct(prod)}
-                  className={`chip-btn ${isActive ? 'active' : ''}`}
+                  className="rounded-full h-7 px-3.5 text-xs font-semibold"
                 >
                   {label}
-                </button>
+                </Button>
               );
             })}
           </div>
@@ -331,12 +371,24 @@ export const Step2Contracts: React.FC = () => {
 
         {/* Select / Deselect All Action Buttons */}
         <div className="flex items-center gap-2">
-          <button onClick={selectAllContracts} className="btn-action text-xs px-3 py-1.5 rounded-lg">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={selectAllContracts}
+            className="h-7 text-xs px-3"
+          >
             Select All
-          </button>
-          <button onClick={clearAllContracts} className="btn-action text-xs px-3 py-1.5 rounded-lg">
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={clearAllContracts}
+            className="h-7 text-xs px-3"
+          >
             Deselect All
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -350,7 +402,15 @@ export const Step2Contracts: React.FC = () => {
             <span>|</span>
             <span className="flex items-center gap-1.5 font-medium">
               <span className="w-2 h-2 rounded-full bg-[var(--accent-gold)] inline-block"></span>
-              Selected: <strong className="text-[var(--accent-gold)] font-mono font-bold">{selectedContracts.length}</strong>
+              Selected:{' '}
+              <strong className="text-[var(--accent-gold)] font-mono font-bold">
+                {currentViewSelectedCount}
+              </strong>
+              {selectedSenderAccount !== 'ALL' && selectedContracts.length !== currentViewSelectedCount && (
+                <span className="text-[10px] text-[var(--text-muted)] font-mono">
+                  ({selectedContracts.length} total)
+                </span>
+              )}
             </span>
           </div>
           <span>

@@ -54,8 +54,8 @@ export const StoneXStepper: React.FC = () => {
                     : isDone
                     ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/15 border border-emerald-500/20'
                     : isClickable
-                    ? 'text-[var(--text-muted)] hover:text-white hover:bg-white/5'
-                    : 'text-[var(--text-muted)] opacity-35 cursor-not-allowed'
+                    ? 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                    : 'text-muted-foreground opacity-35 cursor-not-allowed'
                 }`}
               >
                 <div
@@ -64,7 +64,7 @@ export const StoneXStepper: React.FC = () => {
                       ? 'bg-black text-[var(--accent-gold)]'
                       : isDone
                       ? 'bg-emerald-500 text-black'
-                      : 'bg-white/5 text-[var(--text-muted)]'
+                      : 'bg-muted text-muted-foreground'
                   }`}
                 >
                   {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : s.step}

@@ -42,7 +42,7 @@ export const StoneXNettingTab: React.FC = () => {
           <button
             type="button"
             onClick={resetAll}
-            className="px-4 py-2 rounded-xl text-xs font-mono font-medium text-[var(--text-muted)] hover:text-white hover:bg-white/5 border border-[var(--border-card)] transition flex items-center gap-2 cursor-pointer self-start sm:self-auto"
+            className="px-4 py-2 rounded-xl text-xs font-mono font-medium text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition flex items-center gap-2 cursor-pointer self-start sm:self-auto"
             title="Upload a new positions file"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -59,7 +59,7 @@ export const StoneXNettingTab: React.FC = () => {
           <button
             type="button"
             onClick={() => setError(null)}
-            className="text-rose-400 hover:text-white cursor-pointer px-1"
+            className="text-rose-400 hover:text-foreground cursor-pointer px-1"
           >
             ✕
           </button>

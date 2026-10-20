@@ -202,7 +202,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setMultiTabConflict(false)}
-                className="px-2.5 py-1 text-xs text-amber-300/80 hover:text-white transition cursor-pointer"
+                className="px-2.5 py-1 text-xs text-amber-600 dark:text-amber-300/80 hover:text-foreground transition cursor-pointer"
               >
                 Dismiss
               </button>
@@ -228,7 +228,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setReconnectCandidate(null)}
-                className="px-2.5 py-1 text-xs text-slate-400 hover:text-white transition cursor-pointer"
+                className="px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition cursor-pointer"
               >
                 Ignore
               </button>

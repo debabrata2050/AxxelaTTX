@@ -5,6 +5,11 @@ import { useTradeStore } from '@/store/useTradeStore';
 import { apiClient } from '@/lib/apiClient';
 import { WorkspaceFile } from '@/types/trade.types';
 import { ConfirmModal } from '@/components/ui/ConfirmModal';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card } from '@/components/ui/card';
+import { cn } from '@/lib/utils';
 import {
   UploadCloud,
   FileSpreadsheet,
@@ -12,7 +17,6 @@ import {
   Search,
   RefreshCw,
   HardDrive,
-  CheckCircle,
 } from 'lucide-react';
 
 export const Step0FileSelect: React.FC = () => {
@@ -58,11 +62,11 @@ export const Step0FileSelect: React.FC = () => {
   }, []);
 
   const handleSelectFile = (f: WorkspaceFile) => {
-    if (activeFilePath) {
+    if (activeFilePath && activeFilePath !== f.path) {
       setPendingSelectFile(f);
-      return;
+    } else {
+      executeSelectFile(f);
     }
-    executeSelectFile(f);
   };
 
   const executeSelectFile = async (f: WorkspaceFile) => {
@@ -106,12 +110,12 @@ export const Step0FileSelect: React.FC = () => {
       setTimeout(() => {
         hideLoading();
         setActiveFile({
-          filePath: f.path,
-          filename: f.name,
-          clientGroup: res.client_group || 'SYM',
-          date: res.default_date || '',
-          accounts: res.accounts || [],
-          recordCount: res.total_records || 0,
+          filePath: res.filepath,
+          filename: res.filename,
+          clientGroup: res.client_group,
+          date: res.default_date ?? undefined,
+          accounts: res.accounts,
+          recordCount: res.total_records,
           sessionId: res.session_id,
         });
       }, 350);
@@ -126,23 +130,19 @@ export const Step0FileSelect: React.FC = () => {
   };
 
   const handleFileUpload = (file: File) => {
-    if (file.size > 500 * 1024 * 1024) {
-      showAlert(
-        'File Exceeds Limit',
-        `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds maximum limit of 500MB.`
-      );
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      showAlert('Invalid File Format', 'Please upload a valid .csv file containing trade execution data.');
       return;
     }
-
     if (activeFilePath) {
       setPendingUploadFile(file);
-      return;
+    } else {
+      executeFileUpload(file);
     }
-    executeFileUpload(file);
   };
 
   const executeFileUpload = async (file: File) => {
-    showLoadingSteps('Uploading & Processing CSV', file.name, FILE_PROCESSING_STEPS);
+    showLoadingSteps('Uploading CSV File', file.name, FILE_PROCESSING_STEPS);
 
     let stage = 0;
     const timer = setInterval(() => {
@@ -159,7 +159,7 @@ export const Step0FileSelect: React.FC = () => {
         updateLoadingStep(3, 'in_progress');
         stage = 3;
       }
-    }, 280);
+    }, 250);
 
     try {
       const res = await apiClient.uploadFile(file);
@@ -169,7 +169,7 @@ export const Step0FileSelect: React.FC = () => {
         updateLoadingStep(stage, 'error');
         setTimeout(() => {
           hideLoading();
-          showAlert('Upload Failed', res.error || 'Failed to parse file.');
+          showAlert('Upload Failed', res.error || 'Invalid trade file format.');
         }, 500);
         return;
       }
@@ -229,16 +229,16 @@ export const Step0FileSelect: React.FC = () => {
     <div className="space-y-6">
       {/* Step Header */}
       <div>
-        <h2 className="text-2xl font-bold tracking-tight text-[var(--text-main)]">
+        <h2 className="text-2xl font-bold tracking-tight text-foreground">
           Step 0: Select Trade Execution Data
         </h2>
-        <p className="text-sm text-[var(--text-muted)] mt-1">
+        <p className="text-sm text-muted-foreground mt-1">
           Pick an existing workspace trade export or import a new file. Direct local zero-copy reading is supported.
         </p>
       </div>
 
       {/* Upload Dropzone */}
-      <div
+      <Card
         onClick={() => fileInputRef.current?.click()}
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => {
@@ -247,7 +247,7 @@ export const Step0FileSelect: React.FC = () => {
             handleFileUpload(e.dataTransfer.files[0]);
           }
         }}
-        className="p-8 sm:p-12 rounded-2xl border-2 border-dashed border-[var(--border-card)] hover:border-[var(--accent-gold)] bg-[var(--card-bg)] text-center cursor-pointer transition group shadow-sm"
+        className="p-8 sm:p-12 rounded-2xl border-2 border-dashed border-border hover:border-primary/60 bg-card/60 hover:bg-card text-center cursor-pointer transition-all group shadow-xs"
       >
         <input
           ref={fileInputRef}
@@ -260,77 +260,79 @@ export const Step0FileSelect: React.FC = () => {
             }
           }}
         />
-        <div className="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[var(--accent-gold)]/10 text-[var(--accent-gold)] flex items-center justify-center group-hover:scale-110 transition duration-300">
-          <UploadCloud className="w-7 h-7" />
+        <div className="size-14 mx-auto mb-4 rounded-2xl bg-primary/10 text-primary flex items-center justify-center group-hover:scale-110 transition duration-300">
+          <UploadCloud className="size-7" />
         </div>
-        <h3 className="text-base font-bold text-[var(--text-main)]">
+        <h3 className="text-base font-bold text-foreground">
           Drag & Drop Trade CSV or Click to Browse
         </h3>
-        <p className="text-xs text-[var(--text-muted)] mt-1.5">
+        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">
           Zero-copy parsing: CSVs located in your workspace are read directly from disk without duplication.
         </p>
-        <div className="mt-3 flex items-center justify-center gap-2">
-          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--input-bg)] border border-[var(--border-card)] text-[11px] font-mono font-medium text-[var(--accent-gold)]">
+        <div className="mt-3.5 flex items-center justify-center gap-2">
+          <Badge variant="gold" className="text-xs px-3 py-1">
             Max File Size: 500MB • UTF-8 CSV
-          </span>
+          </Badge>
         </div>
-      </div>
+      </Card>
 
       {/* Available CSV Files In Workspace */}
-      <div className="p-6 rounded-2xl bg-[var(--card-bg)] border border-[var(--border-card)] shadow-sm space-y-4">
+      <Card className="p-6 rounded-2xl bg-card border-border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <HardDrive className="w-4 h-4 text-[var(--accent-gold)]" />
-            <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--accent-gold)]">
+            <HardDrive className="size-4 text-primary" />
+            <h4 className="text-xs font-bold uppercase tracking-wider text-primary">
               Available CSV Files in Workspace ({filteredFiles.length})
             </h4>
           </div>
 
           <div className="flex items-center gap-2">
             <div className="relative w-full sm:w-64">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
+              <Search className="size-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
                 type="text"
                 placeholder="Filter files..."
                 value={filterQuery}
                 onChange={(e) => setFilterQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-[var(--input-bg)] border border-[var(--border-card)] text-xs font-mono text-[var(--text-main)] outline-none focus:border-[var(--accent-gold)]"
+                className="pl-8"
               />
             </div>
-            <button
+            <Button
+              variant="outline"
+              size="icon"
               onClick={fetchWorkspaceFiles}
-              className="p-1.5 rounded-lg border border-[var(--border-card)] text-[var(--text-muted)] hover:text-[var(--accent-gold)] transition"
+              disabled={isRefreshing}
               title="Refresh file list"
             >
-              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-            </button>
+              <RefreshCw className={cn('size-3.5', isRefreshing && 'animate-spin')} />
+            </Button>
           </div>
         </div>
 
         {/* Files Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-[460px] overflow-y-auto pr-1">
           {filteredFiles.length === 0 ? (
-            <div className="col-span-full py-8 text-center text-xs text-[var(--text-muted)]">
+            <div className="col-span-full py-8 text-center text-xs text-muted-foreground">
               No matching CSV files found in workspace.
             </div>
           ) : (
             filteredFiles.map((f) => (
               <div
                 key={f.path}
-                className="p-3.5 rounded-xl border border-[var(--border-card)] hover:border-[var(--accent-gold)] bg-[var(--input-bg)] flex items-center justify-between gap-3 transition group"
+                className="p-3.5 rounded-xl border border-border hover:border-primary/50 bg-input/40 flex items-center justify-between gap-3 transition-all group"
               >
                 <div
                   onClick={() => handleSelectFile(f)}
                   className="flex items-center gap-3 min-w-0 cursor-pointer flex-grow"
                 >
-                  <div className="w-9 h-9 rounded-lg bg-[var(--card-bg)] border border-[var(--border-card)] flex items-center justify-center text-[var(--accent-gold)] flex-shrink-0 group-hover:scale-105 transition">
-                    <FileSpreadsheet className="w-5 h-5" />
+                  <div className="size-9 rounded-lg bg-card border border-border flex items-center justify-center text-primary shrink-0 group-hover:scale-105 transition">
+                    <FileSpreadsheet className="size-5" />
                   </div>
                   <div className="truncate">
-                    <div className="text-xs font-bold font-mono text-[var(--text-main)] truncate group-hover:text-[var(--accent-gold)] transition">
+                    <div className="text-xs font-bold font-mono text-foreground truncate group-hover:text-primary transition">
                       {f.name}
                     </div>
-                    <div className="text-[10px] text-[var(--text-muted)] font-mono flex items-center gap-2 mt-0.5">
+                    <div className="text-[10px] text-muted-foreground font-mono flex items-center gap-2 mt-0.5">
                       <span>{f.size_mb} MB</span>
                       <span>•</span>
                       <span>{f.rel_path}</span>
@@ -339,29 +341,33 @@ export const Step0FileSelect: React.FC = () => {
                 </div>
 
                 {/* Actions: Direct Select & Delete Option */}
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    variant="gold"
+                    size="sm"
                     onClick={() => handleSelectFile(f)}
-                    className="pill-btn-primary text-[11px] py-1 px-3 shadow-none"
+                    className="h-7.5 px-4 text-xs font-bold"
                   >
                     Select
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
                     onClick={(e) => {
                       e.stopPropagation();
                       setDeleteTarget(f);
                     }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition"
+                    className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                     title="Delete file from disk"
                   >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                    <Trash2 className="size-3.5" />
+                  </Button>
                 </div>
               </div>
             ))
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Confirmation Modal for Loading New File during Active Session */}
       <ConfirmModal

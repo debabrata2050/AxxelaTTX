@@ -22,6 +22,8 @@ import {
   Scale,
   Layers,
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 const TRADE_STEPS = [
   { step: 0, title: 'File Source', desc: 'Select or upload CSV', icon: FileText },
@@ -113,11 +115,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <aside
-      className={`hidden lg:flex flex-col border-r border-[var(--border-subtle)] bg-[var(--sidebar-bg)] transition-all duration-300 z-20 flex-shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-72'
+      className={`hidden lg:flex flex-col border-r border-border bg-card dark:bg-card/90 transition-all duration-300 z-20 flex-shrink-0 ${isSidebarCollapsed ? 'w-20' : 'w-72'
         }`}
     >
       {/* ── Brand Header ── */}
-      <div className="h-14 px-4 flex items-center justify-between border-b border-[var(--border-subtle)]">
+      <div className="h-14 px-4 flex items-center justify-between border-b border-border">
         {!isSidebarCollapsed && (
           <div
             onClick={() => handleSelectModule('home')}
@@ -128,10 +130,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <img src="/logo.svg" alt="Axxela Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-[var(--text-main)] group-hover:text-[var(--accent-gold)] transition-colors">
+              <div className="text-xs font-bold uppercase tracking-wider text-foreground group-hover:text-amber-600 dark:group-hover:text-primary transition-colors">
                 Axxela
               </div>
-              <div className="text-[10px] text-[var(--accent-gold)] font-mono font-medium">
+              <div className="text-[10px] text-amber-700 dark:text-primary font-mono font-medium">
                 Operations Suite
               </div>
             </div>
@@ -150,7 +152,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
         <button
           onClick={toggleSidebarCollapsed}
-          className="p-1.5 rounded-md hover:bg-white/5 text-[var(--text-muted)] hover:text-[var(--accent-gold)] transition cursor-pointer"
+          className="p-1.5 rounded-md hover:bg-slate-100 dark:hover:bg-muted text-muted-foreground hover:text-foreground transition cursor-pointer"
           title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           <ChevronLeft
@@ -161,9 +163,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* ── Module Switcher (Top Workspace Level) ── */}
-      <div className="p-3 border-b border-[var(--border-subtle)]/60 space-y-1">
+      <div className="p-3 border-b border-border space-y-1">
         {!isSidebarCollapsed && (
-          <div className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] font-mono px-2 pb-1">
+          <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground font-mono px-2 pb-1">
             Workspaces
           </div>
         )}
@@ -176,35 +178,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
               label: 'Trade Transfer',
               icon: ArrowLeftRight,
               badge: activeFilename ? 'Active' : null,
-              badgeColor: 'text-amber-300 bg-amber-400/10 border-amber-400/20',
             },
             {
               id: 'onboarding',
               label: 'People Onboarding',
               icon: Users,
               badge: onboardingCount > 0 ? `${onboardingCount}` : null,
-              badgeColor: 'text-emerald-300 bg-emerald-400/10 border-emerald-400/20',
             },
             {
               id: 'stonex',
               label: 'StoneX Netting',
               icon: Scale,
               badge: null,
-              badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
             },
             {
               id: 'kgi',
               label: 'KGI Netting',
               icon: Layers,
               badge: null,
-              badgeColor: 'text-sky-300 bg-sky-400/10 border-sky-400/20',
             },
           ] as {
             id: AppModule;
             label: string;
             icon: React.ComponentType<{ className?: string }>;
             badge: string | null;
-            badgeColor?: string;
           }[]
         ).map((m) => {
           const Icon = m.icon;
@@ -215,15 +212,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={m.id}
               onClick={() => handleSelectModule(m.id)}
               className={`w-full flex items-center gap-2.5 p-2 rounded-xl text-left transition-all border cursor-pointer ${isActive
-                  ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] font-bold shadow-xs'
-                  : 'border-transparent text-[var(--text-muted)] hover:text-[var(--text-main)] hover:bg-white/5'
+                  ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-primary font-bold shadow-xs'
+                  : 'border-transparent text-slate-600 dark:text-muted-foreground hover:text-foreground hover:bg-slate-100 dark:hover:bg-accent/40'
                 } ${isSidebarCollapsed ? 'justify-center p-2.5' : ''}`}
               title={m.label}
             >
               <div
                 className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs transition ${isActive
-                    ? 'bg-[var(--accent-gold)] text-black'
-                    : 'bg-white/5 text-[var(--text-muted)]'
+                    ? 'bg-gradient-to-r from-[#ffc81a] via-[#faa000] to-[#f58200] text-black font-bold shadow-2xs'
+                    : 'bg-slate-100 dark:bg-muted text-slate-600 dark:text-muted-foreground'
                   }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -233,12 +230,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="flex-1 flex items-center justify-between min-w-0">
                   <span className="text-xs truncate">{m.label}</span>
                   {m.badge && (
-                    <span
-                      className={`text-[10px] font-mono font-semibold px-2 py-0.2 rounded-full border ${m.badgeColor || ''
-                        }`}
+                    <Badge
+                      variant={
+                        m.id === 'trade'
+                          ? 'gold'
+                          : m.id === 'onboarding'
+                          ? 'emerald'
+                          : 'sky'
+                      }
+                      className="text-[10px] px-2 py-0"
                     >
                       {m.badge}
-                    </span>
+                    </Badge>
                   )}
                 </div>
               )}
@@ -273,18 +276,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   onClick={() => handleStepClick(s.step)}
                   disabled={isDisabled}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition border ${isActive
-                      ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-xs font-bold'
+                      ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-primary shadow-xs font-bold'
                       : isCompleted
-                        ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
-                        : 'border-transparent text-[var(--text-muted)] hover:bg-white/5 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer'
+                        ? 'border-transparent text-foreground hover:bg-slate-100 dark:hover:bg-accent/40 opacity-90'
+                        : 'border-transparent text-slate-500 dark:text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent/40 disabled:opacity-40 disabled:hover:bg-transparent cursor-pointer'
                     } ${isSidebarCollapsed ? 'justify-center p-2.5' : ''}`}
                 >
                   <div
                     className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${isActive
-                        ? 'bg-[var(--accent-gold)] text-black'
+                        ? 'bg-gradient-to-r from-[#ffc81a] via-[#faa000] to-[#f58200] text-black font-bold shadow-2xs'
                         : isCompleted
-                          ? 'bg-emerald-500/20 text-emerald-400'
-                          : 'bg-white/5 text-[var(--text-muted)]'
+                          ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold'
+                          : 'bg-slate-100 dark:bg-muted text-slate-500 dark:text-muted-foreground'
                       }`}
                   >
                     {isCompleted ? '✓' : s.step}
@@ -314,30 +317,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
             )}
 
             <div
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border-card)] bg-[var(--card-bg)] text-xs text-[var(--text-main)] ${isSidebarCollapsed ? 'justify-center' : ''
+              className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-border bg-card/60 text-xs text-foreground ${isSidebarCollapsed ? 'justify-center' : ''
                 }`}
             >
-              <UserPlus className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <UserPlus className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
               {!isSidebarCollapsed && (
                 <div>
                   <div className="font-bold">Add Person</div>
-                  <div className="text-[10px] text-[var(--text-muted)]">Real-time derivation form</div>
+                  <div className="text-[10px] text-muted-foreground">Real-time derivation form</div>
                 </div>
               )}
             </div>
 
             <div
-              className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-[var(--border-card)] bg-[var(--card-bg)] text-xs text-[var(--text-main)] ${isSidebarCollapsed ? 'justify-center' : ''
+              className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-border bg-card/60 text-xs text-foreground ${isSidebarCollapsed ? 'justify-center' : ''
                 }`}
             >
-              <Users className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+              <Users className="w-4 h-4 text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
               {!isSidebarCollapsed && (
                 <div className="flex-1 flex items-center justify-between">
                   <div>
                     <div className="font-bold">Draft Records</div>
-                    <div className="text-[10px] text-[var(--text-muted)]">Ready for export</div>
+                    <div className="text-[10px] text-muted-foreground">Ready for export</div>
                   </div>
-                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-bold">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300 font-bold">
                     {onboardingCount}
                   </span>
                 </div>
@@ -347,14 +350,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
             {onOpenRulesModal && (
               <button
                 onClick={onOpenRulesModal}
-                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-[var(--accent-gold)]/30 hover:bg-white/5 text-xs text-[var(--text-muted)] hover:text-[var(--text-main)] transition cursor-pointer ${isSidebarCollapsed ? 'justify-center' : ''
+                className={`w-full flex items-center gap-3 p-2.5 rounded-xl border border-transparent hover:border-border hover:bg-slate-100 dark:hover:bg-muted text-xs text-muted-foreground hover:text-foreground transition cursor-pointer ${isSidebarCollapsed ? 'justify-center' : ''
                   }`}
               >
-                <Settings2 className="w-4 h-4 text-[var(--accent-gold)] flex-shrink-0" />
+                <Settings2 className="w-4 h-4 text-amber-600 dark:text-primary flex-shrink-0" />
                 {!isSidebarCollapsed && (
                   <div>
                     <div className="font-semibold">Lookup Config</div>
-                    <div className="text-[10px] text-[var(--text-muted)]">Configure tables & codes</div>
+                    <div className="text-[10px] text-muted-foreground">Configure tables & codes</div>
                   </div>
                 )}
               </button>
@@ -394,21 +397,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   title={!isClickable ? check.reason : `Go to Step ${s.step}: ${s.title}`}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition border cursor-pointer ${
                     isActive
-                      ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-xs font-bold'
+                      ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-primary shadow-xs font-bold'
                       : isDone
-                      ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
+                      ? 'border-transparent text-foreground hover:bg-slate-100 dark:hover:bg-accent/40 opacity-90'
                       : isClickable
-                      ? 'border-transparent text-[var(--text-muted)] hover:bg-white/5'
-                      : 'border-transparent text-[var(--text-muted)] opacity-35 cursor-not-allowed'
+                      ? 'border-transparent text-slate-500 dark:text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent/40'
+                      : 'border-transparent text-slate-400 dark:text-muted-foreground opacity-35 cursor-not-allowed'
                   } ${isSidebarCollapsed ? 'justify-center p-2.5' : ''}`}
                 >
                   <div
                     className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${
                       isActive
-                        ? 'bg-[var(--accent-gold)] text-black'
+                        ? 'bg-gradient-to-r from-[#ffc81a] via-[#faa000] to-[#f58200] text-black font-bold shadow-2xs'
                         : isDone
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-white/5 text-[var(--text-muted)]'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold'
+                        : 'bg-slate-100 dark:bg-muted text-slate-500 dark:text-muted-foreground'
                     }`}
                   >
                     {isDone ? '✓' : s.step}
@@ -460,21 +463,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   title={!isClickable ? check.reason : `Go to Step ${s.step}: ${s.title}`}
                   className={`w-full flex items-center gap-3 p-2.5 rounded-xl text-left transition border cursor-pointer ${
                     isActive
-                      ? 'bg-[var(--card-hover)] border-[var(--accent-gold)] text-[var(--accent-gold)] shadow-xs font-bold'
+                      ? 'bg-amber-500/10 border-amber-500/40 text-amber-900 dark:text-primary shadow-xs font-bold'
                       : isDone
-                      ? 'border-transparent text-[var(--text-main)] hover:bg-white/5 opacity-90'
+                      ? 'border-transparent text-foreground hover:bg-slate-100 dark:hover:bg-accent/40 opacity-90'
                       : isClickable
-                      ? 'border-transparent text-[var(--text-muted)] hover:bg-white/5'
-                      : 'border-transparent text-[var(--text-muted)] opacity-35 cursor-not-allowed'
+                      ? 'border-transparent text-slate-500 dark:text-muted-foreground hover:bg-slate-100 dark:hover:bg-accent/40'
+                      : 'border-transparent text-slate-400 dark:text-muted-foreground opacity-35 cursor-not-allowed'
                   } ${isSidebarCollapsed ? 'justify-center p-2.5' : ''}`}
                 >
                   <div
                     className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-mono font-bold transition ${
                       isActive
-                        ? 'bg-[var(--accent-gold)] text-black'
+                        ? 'bg-gradient-to-r from-[#ffc81a] via-[#faa000] to-[#f58200] text-black font-bold shadow-2xs'
                         : isDone
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-white/5 text-[var(--text-muted)]'
+                        ? 'bg-emerald-500/20 text-emerald-700 dark:text-emerald-400 font-bold'
+                        : 'bg-slate-100 dark:bg-muted text-slate-500 dark:text-muted-foreground'
                     }`}
                   >
                     {isDone ? '✓' : s.step}
@@ -496,11 +499,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* ── Footer Actions ── */}
-      <div className="p-3 border-t border-[var(--border-subtle)] space-y-2">
+      <div className="p-3 border-t border-border space-y-2">
         {activeModule === 'trade' && (
           <button
             onClick={onResetConfirm}
-            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
             title="Reset active trade session data"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -511,7 +514,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {activeModule === 'onboarding' && (
           <button
             onClick={onResetOnboardingConfirm}
-            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
             title="Reset people onboarding draft data"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -522,7 +525,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {activeModule === 'stonex' && stoneXSummary && (
           <button
             onClick={resetStoneX}
-            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
             title="Reset StoneX Netting Pipeline"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -533,7 +536,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         {activeModule === 'kgi' && kgiSummary && (
           <button
             onClick={resetKGI}
-            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
+            className="w-full py-1.5 px-2 rounded-lg text-xs font-medium text-sky-600 dark:text-sky-400 hover:bg-sky-500/10 flex items-center justify-center gap-1.5 transition cursor-pointer"
             title="Reset KGI Netting Pipeline"
           >
             <RotateCcw className="w-3.5 h-3.5" />
@@ -542,7 +545,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         )}
 
         {!isSidebarCollapsed && (
-          <div className="text-[10px] text-center text-[var(--text-muted)] font-mono">
+          <div className="text-[10px] text-center text-muted-foreground font-mono">
             Axxela Operations
           </div>
         )}

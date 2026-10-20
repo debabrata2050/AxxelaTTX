@@ -147,16 +147,26 @@ export const apiClient = {
     return data;
   },
 
+  clearTradesCache() {
+    tradesCache.clear();
+  },
+
   async getTrades(
     accounts: string[],
     contractIds: string[],
     product: string,
     limit?: number,
-    offset?: number
+    offset?: number,
+    forceRefresh?: boolean
   ) {
     const sid = useTradeStore.getState().sessionId || 'default';
-    const cacheKey = `${sid}::${accounts.join(',')}::${(contractIds || []).join(',')}::${product}::${limit}::${offset}`;
-    if (tradesCache.has(cacheKey)) {
+    const sortedAccs = [...accounts].map((a) => a.trim().toUpperCase()).sort().join(',');
+    const sortedCids = [...(contractIds || [])].map((c) => String(c).trim().toUpperCase()).sort().join(',');
+    const cacheKey = `${sid}::${sortedAccs}::${sortedCids}::${product}::${limit}::${offset}`;
+    
+    if (forceRefresh) {
+      tradesCache.delete(cacheKey);
+    } else if (tradesCache.has(cacheKey)) {
       return tradesCache.get(cacheKey);
     }
 
@@ -173,10 +183,13 @@ export const apiClient = {
         product,
         ...(limit !== undefined ? { limit } : {}),
         ...(offset !== undefined ? { offset } : {}),
+        ...(forceRefresh ? { force_refresh: true } : {}),
       }),
     });
     const data = await handleResponse(res);
-    tradesCache.set(cacheKey, data);
+    if (data?.trades && data.trades.length > 0) {
+      tradesCache.set(cacheKey, data);
+    }
     return data;
   },
 

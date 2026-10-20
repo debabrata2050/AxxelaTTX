@@ -100,5 +100,12 @@ ehthumbs.db
 Desktop.ini
 *.swp
 *.swo
-*~
 *.tmp
+
+# Agent directories & skills
+.agents/
+agents/
+.agent/
+agent/
+frontend/.agents/
+
