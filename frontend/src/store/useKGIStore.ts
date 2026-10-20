@@ -58,6 +58,13 @@ export interface KGIPreviewRow {
   comments: string;
 }
 
+export const formatKGIFilename = (date: Date = new Date()): string => {
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  return `KGI_Netting_Instructions_${dd}.${mm}.${yyyy}.xlsx`;
+};
+
 interface KGIState {
   currentStep: number;
   summary: KGISummaryData | null;
@@ -139,7 +146,7 @@ export const useKGIStore = create<KGIState>((set, get) => ({
   previewRows: [],
   isPreviewLoading: false,
   isExporting: false,
-  exportFilename: 'KGI_Trade_Transfer_Consolidated.xlsx',
+  exportFilename: formatKGIFilename(),
   customComments: {},
 
   canProceedToStep: (targetStep: number) => {
@@ -379,9 +386,9 @@ export const useKGIStore = create<KGIState>((set, get) => ({
         return existing !== undefined ? { ...r, comments: existing } : r;
       });
       set({ previewRows: updatedRows, isPreviewLoading: false });
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({
-        errorMessage: err.message || 'Error generating preview.',
+        errorMessage: err instanceof Error ? err.message : 'Error generating preview.',
         isPreviewLoading: false,
       });
     }
@@ -392,7 +399,6 @@ export const useKGIStore = create<KGIState>((set, get) => ({
       summary,
       selectedContracts,
       destinationAccount,
-      exportFilename,
       customComments,
     } = get();
 
@@ -401,7 +407,9 @@ export const useKGIStore = create<KGIState>((set, get) => ({
       return;
     }
 
-    set({ isExporting: true, errorMessage: null });
+    const currentFilename = formatKGIFilename(new Date());
+
+    set({ isExporting: true, errorMessage: null, exportFilename: currentFilename });
     try {
       const resp = await fetch('/api/kgi/export', {
         method: 'POST',
@@ -412,7 +420,7 @@ export const useKGIStore = create<KGIState>((set, get) => ({
           destination_account: destinationAccount,
           eligible_only: true,
           custom_comments: customComments,
-          filename: exportFilename,
+          filename: currentFilename,
         }),
       });
 
@@ -425,7 +433,7 @@ export const useKGIStore = create<KGIState>((set, get) => ({
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = exportFilename.endsWith('.xlsx') ? exportFilename : `${exportFilename}.xlsx`;
+      a.download = currentFilename;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -433,11 +441,12 @@ export const useKGIStore = create<KGIState>((set, get) => ({
 
       set({
         isExporting: false,
-        successMessage: `Export complete: ${exportFilename}`,
+        exportFilename: currentFilename,
+        successMessage: `Export complete: ${currentFilename}`,
       });
-    } catch (err: any) {
+    } catch (err: unknown) {
       set({
-        errorMessage: err.message || 'Export failed.',
+        errorMessage: err instanceof Error ? err.message : 'Export failed.',
         isExporting: false,
       });
     }
@@ -460,6 +469,7 @@ export const useKGIStore = create<KGIState>((set, get) => ({
       previewRows: [],
       isPreviewLoading: false,
       isExporting: false,
+      exportFilename: formatKGIFilename(),
       customComments: {},
     }),
 }));

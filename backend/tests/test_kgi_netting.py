@@ -2,6 +2,7 @@ import os
 import tempfile
 import pytest
 import openpyxl
+from datetime import datetime
 
 from app import create_app
 from core.kgi_netting_engine import KGINettingEngine, DEFAULT_KGI_TO_ACCOUNT, EXCEL_HEADERS
@@ -97,7 +98,8 @@ def test_kgi_excel_export_layout_a1(synthetic_csv):
         assert ws["A1"].value == "Trade Transfer Form"
         assert ws["A1"].font.name == "Calibri"
         assert ws["A1"].font.bold is True
-        assert ws["A1"].fill.start_color.rgb == "00FFFF00"
+        # Verify no yellow fill in final output
+        assert ws["A1"].fill.fill_type is None or ws["A1"].fill.start_color.rgb not in ["00FFFF00", "FFFF00"]
         assert "<MergedCellRange A1:L1>" in str(ws.merged_cells.ranges)
 
         # Headers on Row 2
@@ -185,3 +187,15 @@ def test_kgi_flask_endpoints(synthetic_csv):
     )
     assert resp.status_code == 200
     assert "spreadsheetml" in resp.content_type
+
+    # 4. Export endpoint with default filename
+    resp_default = client.post(
+        "/api/kgi/export",
+        json={
+            "filepath": synthetic_csv,
+            "contracts": ["TF"],
+        },
+    )
+    assert resp_default.status_code == 200
+    today_str = datetime.now().strftime("%d.%m.%Y")
+    assert f"KGI_Netting_Instructions_{today_str}.xlsx" in resp_default.headers.get("Content-Disposition", "")

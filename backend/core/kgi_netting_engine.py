@@ -417,8 +417,8 @@ class KGINettingEngine:
         """
         Generates single-worksheet 'Sheet1' Excel file matching institutional KGI Trade Transfer template.
         Starts directly at cell A1 with zero margin gaps:
-        - Row 1: Merged Title 'Trade Transfer Form' (A1:L1), yellow fill #FFFF00, bold 11pt Calibri, centered.
-        - Row 2: Headers (A2:L2), yellow fill #FFFF00, bold 11pt Calibri, centered, thin borders.
+        - Row 1: Merged Title 'Trade Transfer Form' (A1:L1), clean bold 11pt Calibri, centered, thin borders.
+        - Row 2: Headers (A2:L2), clean bold 11pt Calibri, centered, thin borders (no yellow highlight).
         - Rows 3+: Consolidated Data rows, thin borders, B rows first sorted by Date, then S rows sorted by Date.
         """
         preview_rows = self.get_preview_rows(
@@ -459,7 +459,6 @@ class KGINettingEngine:
         cell_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
 
         # Style definitions
-        yellow_fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")
         title_font = Font(name="Calibri", size=11, bold=True)
         header_font = Font(name="Calibri", size=11, bold=True)
         data_font = Font(name="Calibri", size=11, bold=False)
@@ -472,19 +471,16 @@ class KGINettingEngine:
         ws.merge_cells("A1:L1")
         title_cell = ws.cell(row=1, column=1, value="Trade Transfer Form")
         title_cell.font = title_font
-        title_cell.fill = yellow_fill
         title_cell.alignment = center_align
 
         for col in range(1, 13):
             c = ws.cell(row=1, column=col)
             c.border = cell_border
-            c.fill = yellow_fill
 
         # Row 2: Headers (A2:L2)
         for col_idx, header in enumerate(EXCEL_HEADERS, start=1):
             cell = ws.cell(row=2, column=col_idx, value=header)
             cell.font = header_font
-            cell.fill = yellow_fill
             cell.alignment = center_align
             cell.border = cell_border
 

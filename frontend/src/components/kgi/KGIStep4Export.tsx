@@ -1,16 +1,13 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { useKGIStore, KGIPreviewRow } from '@/store/useKGIStore';
+import { useKGIStore, KGIPreviewRow, formatKGIFilename } from '@/store/useKGIStore';
 import { DataTable, ColumnDef } from '@/components/ui/DataTable';
 import {
   Download,
   ArrowLeft,
   FileSpreadsheet,
   RefreshCw,
-  CheckCircle2,
-  AlertCircle,
-  Building2,
   MessageSquare,
 } from 'lucide-react';
 
@@ -22,7 +19,6 @@ export const KGIStep4Export: React.FC = () => {
   const fetchPreview = useKGIStore((s) => s.fetchPreview);
   const exportExcel = useKGIStore((s) => s.exportExcel);
   const setStep = useKGIStore((s) => s.setStep);
-  const selectedContracts = useKGIStore((s) => s.selectedContracts);
   const summary = useKGIStore((s) => s.summary);
   const updateRowComment = useKGIStore((s) => s.updateRowComment);
   const setBulkComment = useKGIStore((s) => s.setBulkComment);
@@ -31,6 +27,7 @@ export const KGIStep4Export: React.FC = () => {
 
   useEffect(() => {
     fetchPreview();
+    useKGIStore.setState({ exportFilename: formatKGIFilename() });
   }, [fetchPreview]);
 
   const columns: ColumnDef<KGIPreviewRow>[] = [

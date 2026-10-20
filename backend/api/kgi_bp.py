@@ -8,6 +8,7 @@ import os
 import uuid
 import tempfile
 import logging
+from datetime import datetime
 from flask import Blueprint, request, jsonify, send_file
 from werkzeug.utils import secure_filename
 
@@ -100,7 +101,9 @@ def export_kgi_excel():
     destination_account = data.get("destination_account") or DEFAULT_KGI_TO_ACCOUNT
     eligible_only = data.get("eligible_only", True)
     custom_comments = data.get("custom_comments")
-    filename = data.get("filename") or "KGI_Trade_Transfer_Consolidated.xlsx"
+    today_str = datetime.now().strftime("%d.%m.%Y")
+    default_filename = f"KGI_Netting_Instructions_{today_str}.xlsx"
+    filename = data.get("filename") or default_filename
     if not filename.endswith(".xlsx"):
         filename += ".xlsx"
 
