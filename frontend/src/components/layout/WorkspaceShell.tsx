@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { useTradeStore, AppModule } from '@/store/useTradeStore';
 import { useOnboardingStore } from '@/store/useOnboardingStore';
 import { apiClient } from '@/lib/apiClient';
@@ -21,6 +22,7 @@ import { Step2Contracts } from '@/components/steps/Step2Contracts';
 import { Step3Allocations } from '@/components/steps/Step3Allocations';
 import { Step4PreviewExport } from '@/components/steps/Step4PreviewExport';
 import { Loader2, CheckCircle2, Circle, XCircle, AlertTriangle, Info } from 'lucide-react';
+import { WorkspaceStatusResponse } from '@/types/trade.types';
 
 interface WorkspaceShellProps {
   defaultModule?: AppModule;
@@ -31,9 +33,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
     activeModule,
     setActiveModule,
     currentStep,
-    setStep,
     resetSession,
-    sessionId,
     sessionMismatch,
     setSessionMismatch,
     multiTabConflict,
@@ -46,31 +46,41 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
     loadingProgress,
     alert,
     hideAlert,
-  } = useTradeStore();
+  } = useTradeStore(
+    useShallow((s) => ({
+      activeModule: s.activeModule,
+      setActiveModule: s.setActiveModule,
+      currentStep: s.currentStep,
+      resetSession: s.resetSession,
+      sessionMismatch: s.sessionMismatch,
+      setSessionMismatch: s.setSessionMismatch,
+      multiTabConflict: s.multiTabConflict,
+      setMultiTabConflict: s.setMultiTabConflict,
+      setActiveFile: s.setActiveFile,
+      isLoading: s.isLoading,
+      loadingTitle: s.loadingTitle,
+      loadingSubtitle: s.loadingSubtitle,
+      loadingSteps: s.loadingSteps,
+      loadingProgress: s.loadingProgress,
+      alert: s.alert,
+      hideAlert: s.hideAlert,
+    }))
+  );
 
-  const { clearAll: clearOnboardingAll } = useOnboardingStore();
+  const clearOnboardingAll = useOnboardingStore((s) => s.clearAll);
 
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [showOnboardingResetConfirm, setShowOnboardingResetConfirm] = useState(false);
   const [isFileSwitchModalOpen, setIsFileSwitchModalOpen] = useState(false);
   const [showRulesModal, setShowRulesModal] = useState(false);
-  const [reconnectCandidate, setReconnectCandidate] = useState<any | null>(null);
+  const [reconnectCandidate, setReconnectCandidate] = useState<WorkspaceStatusResponse | null>(null);
 
-  // SSR-safe currentModule initialized to defaultModule prop
-  const [currentModule, setCurrentModule] = useState<AppModule>(defaultModule || 'home');
-
-  // Sync defaultModule from route entry if specified
+  // Sync defaultModule on route entry if specified and not already active
   useEffect(() => {
-    if (defaultModule) {
+    if (defaultModule && useTradeStore.getState().activeModule !== defaultModule) {
       setActiveModule(defaultModule);
-      setCurrentModule(defaultModule);
     }
   }, [defaultModule, setActiveModule]);
-
-  // Sync with store activeModule updates
-  useEffect(() => {
-    setCurrentModule(activeModule);
-  }, [activeModule]);
 
   // Sync with browser Back / Forward buttons
   useEffect(() => {
@@ -129,11 +139,11 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
       filename: reconnectCandidate.filename || '',
       clientGroup: reconnectCandidate.client_group || 'SYM',
       date: reconnectCandidate.default_date || '',
-      accounts: (reconnectCandidate.accounts || []).map((a: any) =>
+      accounts: (reconnectCandidate.accounts || []).map((a) =>
         typeof a === 'string' ? a : a.account
       ),
       recordCount: reconnectCandidate.total_rows || reconnectCandidate.total_records || 0,
-      sessionId: reconnectCandidate.session_id,
+      sessionId: reconnectCandidate.session_id || undefined,
     });
     setActiveModule('trade');
     setReconnectCandidate(null);
@@ -143,11 +153,8 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
     <div className="flex h-screen overflow-hidden bg-[var(--canvas-bg)]">
       {/* ── Persistent Unified Sidebar (Desktop / Tablet) ── */}
       <Sidebar
-        activeModule={currentModule}
-        onSelectModule={(mod) => {
-          setCurrentModule(mod);
-          setActiveModule(mod);
-        }}
+        activeModule={activeModule}
+        onSelectModule={setActiveModule}
         onResetConfirm={() => setShowResetConfirm(true)}
         onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
         onOpenRulesModal={() => setShowRulesModal(true)}
@@ -155,11 +162,8 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
 
       {/* ── Mobile Drawer (Mobile viewports) ── */}
       <MobileDrawer
-        activeModule={currentModule}
-        onSelectModule={(mod) => {
-          setCurrentModule(mod);
-          setActiveModule(mod);
-        }}
+        activeModule={activeModule}
+        onSelectModule={setActiveModule}
         onResetConfirm={() => setShowResetConfirm(true)}
         onResetOnboardingConfirm={() => setShowOnboardingResetConfirm(true)}
         onOpenRulesModal={() => setShowRulesModal(true)}
@@ -169,7 +173,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
       <main className="flex-grow flex flex-col min-w-0 h-full overflow-hidden bg-[var(--canvas-bg)]">
         {/* Header with Feature Switcher & Contextual Actions */}
         <Header
-          activeModule={currentModule}
+          activeModule={activeModule}
           onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
           onOpenRulesModal={() => setShowRulesModal(true)}
         />
@@ -246,7 +250,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
         <div className="flex-grow overflow-y-auto p-4 sm:p-6 lg:p-8">
           <div className="max-w-7xl mx-auto">
             {/* View 1: Home Feature Hub */}
-            {currentModule === 'home' && (
+            {activeModule === 'home' && (
               <FeatureHub
                 onSelectMode={(mode) => setActiveModule(mode)}
                 onOpenFileModal={() => setIsFileSwitchModalOpen(true)}
@@ -255,7 +259,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             )}
 
             {/* View 2: Trade Transfer 5-Step Pipeline */}
-            {currentModule === 'trade' && (
+            {activeModule === 'trade' && (
               <div key={currentStep} className="step-view-enter space-y-6">
                 {currentStep === 0 && <Step0FileSelect />}
                 {currentStep === 1 && <Step1RouteMap />}
@@ -266,21 +270,21 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
             )}
 
             {/* View 3: People Onboarding Portal */}
-            {currentModule === 'onboarding' && (
+            {activeModule === 'onboarding' && (
               <div className="step-view-enter">
                 <OnboardingTab />
               </div>
             )}
 
             {/* View 4: StoneX Netting Portal */}
-            {currentModule === 'stonex' && (
+            {activeModule === 'stonex' && (
               <div className="step-view-enter">
                 <StoneXNettingTab />
               </div>
             )}
 
             {/* View 5: KGI Netting Portal */}
-            {currentModule === 'kgi' && (
+            {activeModule === 'kgi' && (
               <div className="step-view-enter">
                 <KGINettingTab />
               </div>
@@ -289,7 +293,7 @@ export function WorkspaceShell({ defaultModule }: WorkspaceShellProps) {
         </div>
 
         {/* Sticky Status Basket Bar — only in trade mode during active steps */}
-        {currentModule === 'trade' && currentStep > 0 && <BasketBar />}
+        {activeModule === 'trade' && currentStep > 0 && <BasketBar />}
       </main>
 
       {/* ── Global Loading Overlay with Step Progress ── */}

@@ -21,6 +21,38 @@ interface HeaderProps {
   onOpenRulesModal?: () => void;
 }
 
+const LiveClock = React.memo(function LiveClock() {
+  const [currentTime, setCurrentTime] = useState<string>('');
+
+  useEffect(() => {
+    const updateTime = () => {
+      const formatted = new Date().toLocaleTimeString(undefined, {
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+      setCurrentTime((prev) => (prev !== formatted ? formatted : prev));
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!currentTime) return null;
+
+  return (
+    <div
+      className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-foreground shadow-xs shrink-0 select-none transition-colors"
+      title="Local System Time"
+    >
+      <Clock className="size-3.5 text-primary shrink-0" />
+      <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight text-foreground">
+        {currentTime}
+      </span>
+    </div>
+  );
+});
+
 export const Header: React.FC<HeaderProps> = ({
   activeModule: propActiveModule,
   onOpenFileModal,
@@ -40,11 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
   const { rows } = useOnboardingStore();
   const onboardingCount = rows.length;
 
-  const [mounted, setMounted] = useState(false);
-  const [currentTime, setCurrentTime] = useState('');
-
   useEffect(() => {
-    setMounted(true);
     if (typeof window !== 'undefined') {
       const isDomDark =
         document.documentElement.getAttribute('data-theme') === 'dark' ||
@@ -55,18 +83,6 @@ export const Header: React.FC<HeaderProps> = ({
         useTradeStore.getState().setTheme(activeTheme);
       }
     }
-    const updateTime = () => {
-      setCurrentTime(
-        new Date().toLocaleTimeString(undefined, {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-        })
-      );
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
   }, []);
 
   return (
@@ -161,17 +177,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* ── Live Local Time Clock Pill ── */}
-        {mounted && currentTime && (
-          <div
-            className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-card border border-border text-foreground shadow-xs shrink-0 select-none transition-colors"
-            title="Local System Time"
-          >
-            <Clock className="size-3.5 text-primary shrink-0" />
-            <span className="font-mono text-[11px] sm:text-xs font-semibold tracking-tight text-foreground">
-              {currentTime}
-            </span>
-          </div>
-        )}
+        <LiveClock />
 
         {/* ── Modern Minimalist Theme Toggle (Preserves Ripple Transition) ── */}
         <Button
